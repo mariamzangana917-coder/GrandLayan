@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\CatalogItemController;
 use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,17 @@ Route::prefix('admin')
         Route::apiResource(
             'categories',
             CategoryController::class
+        )->only([
+            'index',
+            'store',
+            'show',
+            'update',
+            'destroy',
+        ]);
+
+        Route::apiResource(
+            'catalog-items',
+            CatalogItemController::class
         )->only([
             'index',
             'store',
