@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -16,103 +17,92 @@ class RolesAndPermissionsSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $permissions = [
-            // Appointments
-            'appointments.view_all',
-            'appointments.view_department',
-            'appointments.view_own',
-            'appointments.confirm',
-            'appointments.update',
-            'appointments.cancel',
-            'appointments.assign_employees',
-            'appointments.create_manual',
-            'appointments.start',
-            'appointments.complete',
+        DB::transaction(function (): void {
+            $guardName = 'web';
 
-            // Customers
-            'customers.view_all',
-            'customers.view_department',
-            'customers.view_related',
+            /*
+             * Remove obsolete authenticated roles.
+             *
+             * Reception and employees no longer have login accounts.
+             * Employees will later exist as business records managed
+             * exclusively by the manager.
+             */
+            $obsoleteRoles = Role::query()
+                ->where('guard_name', $guardName)
+                ->whereIn('name', [
+                    'reception_salon',
+                    'reception_clinic',
+                    'employee',
+                ])
+                ->get();
 
-            // Employees
-            'employees.manage',
+            foreach ($obsoleteRoles as $role) {
+                $role->syncPermissions([]);
+                $role->delete();
+            }
 
-            // Catalog and prices
-            'catalog.view',
-            'catalog.manage',
-            'prices.update',
+            /*
+             * Current official manager permissions.
+             */
+            $permissionNames = [
+                'appointments.manage',
+                'customers.manage',
+                'services.manage',
+                'employees.manage',
+                'reports.view',
+                'sales.view',
+                'profits.view',
+                'coupons.manage',
+                'notifications.send_bulk',
+                'reviews.view',
+                'payments.manage',
+                'gift_cards.manage',
+                'service_images.manage',
+                'settings.manage',
+                'activity_logs.view',
+            ];
 
-            // Offers, posts and banners
-            'offers.manage',
-            'posts.manage',
-            'banners.manage',
+            /*
+             * Safely remove permissions that no longer belong
+             * to the official project requirements.
+             */
+            $obsoletePermissions = Permission::query()
+                ->where('guard_name', $guardName)
+                ->whereNotIn('name', $permissionNames)
+                ->get();
 
-            // Chat
-            'chat.view_all',
-            'chat.view_department',
+            foreach ($obsoletePermissions as $permission) {
+                $permission->roles()->detach();
+                $permission->delete();
+            }
 
-            // Notifications
-            'notifications.send_individual',
-            'notifications.send_bulk',
+            /*
+             * Create or keep the current permissions.
+             */
+            foreach ($permissionNames as $permissionName) {
+                Permission::findOrCreate($permissionName, $guardName);
+            }
 
-            // Payments and invoices
-            'payments.manage',
-            'invoices.manage',
+            /*
+             * Only two authenticated account types remain:
+             * manager and customer.
+             */
+            $manager = Role::findOrCreate('manager', $guardName);
+            $customer = Role::findOrCreate('customer', $guardName);
 
-            // Reviews
-            'reviews.view_all',
-            'reviews.view_own',
+            $manager->syncPermissions(
+                Permission::query()
+                    ->where('guard_name', $guardName)
+                    ->whereIn('name', $permissionNames)
+                    ->get()
+            );
 
-            // Reports and profits
-            'reports.view',
-            'profits.view',
-
-            // System administration
-            'settings.manage',
-            'roles.manage',
-            'activity_logs.view',
-        ];
-
-        foreach ($permissions as $permission) {
-            Permission::findOrCreate($permission, 'web');
-        }
-
-        $manager = Role::findOrCreate('manager', 'web');
-        $receptionSalon = Role::findOrCreate('reception_salon', 'web');
-        $receptionClinic = Role::findOrCreate('reception_clinic', 'web');
-        $employee = Role::findOrCreate('employee', 'web');
-        Role::findOrCreate('customer', 'web');
-
-        $manager->syncPermissions(Permission::all());
-
-        $receptionPermissions = [
-            'appointments.view_department',
-            'appointments.confirm',
-            'appointments.update',
-            'appointments.cancel',
-            'appointments.assign_employees',
-            'appointments.create_manual',
-            'appointments.start',
-            'appointments.complete',
-            'customers.view_department',
-            'catalog.view',
-            'chat.view_department',
-            'notifications.send_individual',
-            'payments.manage',
-            'invoices.manage',
-        ];
-
-        $receptionSalon->syncPermissions($receptionPermissions);
-        $receptionClinic->syncPermissions($receptionPermissions);
-
-        $employee->syncPermissions([
-            'appointments.view_own',
-            'appointments.start',
-            'appointments.complete',
-            'customers.view_related',
-            'catalog.view',
-            'reviews.view_own',
-        ]);
+            /*
+             * Customer authorization will depend on authenticated
+             * customer routes, ownership policies and API checks.
+             */
+            $customer->syncPermissions([]);
+        });
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
