@@ -4,23 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Department extends Model
+class CatalogItemImage extends Model
 {
     use HasFactory;
-
-    public const SALON = 'salon';
-
-    public const CLINIC = 'clinic';
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'code',
-        'name',
-        'is_active',
+        'catalog_item_id',
+        'path',
+        'url',
+        'alt_text',
+        'is_primary',
         'sort_order',
     ];
 
@@ -30,13 +28,14 @@ class Department extends Model
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
+            'catalog_item_id' => 'integer',
+            'is_primary' => 'boolean',
             'sort_order' => 'integer',
         ];
     }
 
-    public function categories(): HasMany
+    public function catalogItem(): BelongsTo
     {
-        return $this->hasMany(Category::class);
+        return $this->belongsTo(CatalogItem::class);
     }
 }

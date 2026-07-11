@@ -4,24 +4,22 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Department extends Model
+class Category extends Model
 {
-    use HasFactory;
-
-    public const SALON = 'salon';
-
-    public const CLINIC = 'clinic';
+    use HasFactory, SoftDeletes;
 
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'code',
+        'department_id',
         'name',
+        'description',
         'is_active',
-        'sort_order',
     ];
 
     /**
@@ -30,13 +28,18 @@ class Department extends Model
     protected function casts(): array
     {
         return [
+            'department_id' => 'integer',
             'is_active' => 'boolean',
-            'sort_order' => 'integer',
         ];
     }
 
-    public function categories(): HasMany
+    public function department(): BelongsTo
     {
-        return $this->hasMany(Category::class);
+        return $this->belongsTo(Department::class);
+    }
+
+    public function catalogItems(): HasMany
+    {
+        return $this->hasMany(CatalogItem::class);
     }
 }
