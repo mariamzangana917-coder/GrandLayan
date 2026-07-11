@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\CategoryController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -11,3 +12,21 @@ Route::prefix('auth')->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout']);
     });
 });
+
+Route::prefix('admin')
+    ->middleware([
+        'auth:sanctum',
+        'role:manager',
+    ])
+    ->group(function (): void {
+        Route::apiResource(
+            'categories',
+            CategoryController::class
+        )->only([
+            'index',
+            'store',
+            'show',
+            'update',
+            'destroy',
+        ]);
+    });
