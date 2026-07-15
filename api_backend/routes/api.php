@@ -1,5 +1,5 @@
 <?php
-
+use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\CatalogItemController;
 use App\Http\Controllers\Api\Admin\CatalogItemImageController;
 use App\Http\Controllers\Api\Admin\CategoryController;
@@ -7,30 +7,73 @@ use App\Http\Controllers\Api\Admin\CustomerController;
 use App\Http\Controllers\Api\Admin\PackageItemController;
 use App\Http\Controllers\Api\Appointments\AppointmentController;
 use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Customer\Auth\CustomerAuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Admin\AdminAppointmentController;
 
 /*
 |--------------------------------------------------------------------------
-| Authentication Routes
+| Admin Authentication Routes
 |--------------------------------------------------------------------------
+|
+| هذه المسارات خاصة بتطبيق الإدارة.
+| لا تسمح إلا بدخول حساب manager.
+|
 */
 
 Route::prefix('auth')->group(function (): void {
     Route::post(
         '/login',
         [AuthController::class, 'login']
-    );
+    )->name('auth.login');
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get(
             '/me',
             [AuthController::class, 'me']
-        );
+        )->name('auth.me');
 
         Route::post(
             '/logout',
             [AuthController::class, 'logout']
-        );
+        )->name('auth.logout');
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Customer Authentication Routes
+|--------------------------------------------------------------------------
+|
+| هذه المسارات خاصة بتطبيق الزبونة فقط.
+| إنشاء الحساب يفرض دور customer من الـ Backend.
+|
+*/
+
+Route::prefix('customer/auth')->group(function (): void {
+    Route::post(
+        '/register',
+        [CustomerAuthController::class, 'register']
+    )->name('customer.auth.register');
+
+    Route::post(
+        '/login',
+        [CustomerAuthController::class, 'login']
+    )->name('customer.auth.login');
+
+    Route::middleware([
+        'auth:sanctum',
+        'role:customer',
+    ])->group(function (): void {
+        Route::get(
+            '/me',
+            [CustomerAuthController::class, 'me']
+        )->name('customer.auth.me');
+
+        Route::post(
+            '/logout',
+            [CustomerAuthController::class, 'logout']
+        )->name('customer.auth.logout');
     });
 });
 
@@ -76,11 +119,30 @@ Route::prefix('admin')
         | Customer Management
         |--------------------------------------------------------------------------
         */
+        Route::get(
+    'customers/{customer}',
+    [CustomerController::class, 'show']
+)->name('customers.show');
+
+Route::get(
+    'appointments',
+    [AdminAppointmentController::class, 'index']
+)->name('admin.appointments.index');
+
+        Route::get(
+            'dashboard',
+            DashboardController::class
+        )->name('admin.dashboard');
 
         Route::get(
             'customers',
             [CustomerController::class, 'index']
         )->name('customers.index');
+
+        Route::get(
+    'appointments/{appointment}',
+    [AdminAppointmentController::class, 'show']
+)->name('admin.appointments.show');
 
         /*
         |--------------------------------------------------------------------------
