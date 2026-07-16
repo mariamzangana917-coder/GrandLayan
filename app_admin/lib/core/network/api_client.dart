@@ -1,22 +1,18 @@
 import 'package:dio/dio.dart';
 
 import '../storage/token_storage.dart';
+import 'api_config.dart';
 
 class ApiClient {
   const ApiClient();
 
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8000/api',
-  );
-
   static final Dio dio =
       Dio(
           BaseOptions(
-            baseUrl: baseUrl,
-            connectTimeout: const Duration(seconds: 20),
-            receiveTimeout: const Duration(seconds: 20),
-            sendTimeout: const Duration(seconds: 20),
+            baseUrl: ApiConfig.baseUrl,
+            connectTimeout: ApiConfig.connectTimeout,
+            receiveTimeout: ApiConfig.receiveTimeout,
+            sendTimeout: ApiConfig.sendTimeout,
             responseType: ResponseType.json,
             headers: const <String, dynamic>{'Accept': 'application/json'},
           ),

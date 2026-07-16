@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../storage/secure_storage_service.dart';
+import 'api_config.dart';
 import 'api_exception.dart';
 
 class ApiClient {
@@ -9,13 +10,10 @@ class ApiClient {
   }) : _storage = storage {
     _dio = Dio(
       BaseOptions(
-        baseUrl: const String.fromEnvironment(
-          'API_BASE_URL',
-          defaultValue: 'http://192.168.0.103:8000/api',
-        ),
-        connectTimeout: const Duration(seconds: 20),
-        receiveTimeout: const Duration(seconds: 20),
-        sendTimeout: const Duration(seconds: 20),
+        baseUrl: ApiConfig.baseUrl,
+        connectTimeout: ApiConfig.connectTimeout,
+        receiveTimeout: ApiConfig.receiveTimeout,
+        sendTimeout: ApiConfig.sendTimeout,
         headers: const {
           'Accept': 'application/json',
           'Content-Type': 'application/json',

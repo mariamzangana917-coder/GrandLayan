@@ -25,7 +25,9 @@ Route::prefix('auth')->group(function (): void {
     Route::post(
         '/login',
         [AuthController::class, 'login']
-    )->name('auth.login');
+    )
+        ->middleware('throttle:5,1')
+        ->name('auth.login');
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get(
@@ -54,12 +56,16 @@ Route::prefix('customer/auth')->group(function (): void {
     Route::post(
         '/register',
         [CustomerAuthController::class, 'register']
-    )->name('customer.auth.register');
+    )
+        ->middleware('throttle:3,1')
+        ->name('customer.auth.register');
 
     Route::post(
         '/login',
         [CustomerAuthController::class, 'login']
-    )->name('customer.auth.login');
+    )
+        ->middleware('throttle:5,1')
+        ->name('customer.auth.login');
 
     Route::middleware([
         'auth:sanctum',
