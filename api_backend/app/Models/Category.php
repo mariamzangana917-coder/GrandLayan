@@ -19,6 +19,7 @@ class Category extends Model
         'department_id',
         'name',
         'description',
+        'image_path',
         'is_active',
     ];
 

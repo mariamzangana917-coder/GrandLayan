@@ -119,6 +119,12 @@ Route::prefix('admin')
         | Customer Management
         |--------------------------------------------------------------------------
         */
+
+Route::delete(
+    'categories/{category}/image',
+    [CategoryController::class, 'destroyImage']
+)->name('categories.image.destroy');
+
         Route::get(
     'customers/{customer}',
     [CustomerController::class, 'show']

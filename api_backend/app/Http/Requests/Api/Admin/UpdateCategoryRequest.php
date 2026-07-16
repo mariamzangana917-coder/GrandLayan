@@ -44,6 +44,13 @@ class UpdateCategoryRequest extends FormRequest
                 'string',
                 'max:2000',
             ],
+            'image' => [
+    'sometimes',
+    'nullable',
+    'image',
+    'mimes:jpg,jpeg,png,webp',
+    'max:5120',
+],
 
             'is_active' => [
                 'sometimes',
@@ -115,6 +122,10 @@ class UpdateCategoryRequest extends FormRequest
             'description.max' => 'وصف التصنيف يجب ألا يتجاوز 2000 حرف.',
 
             'is_active.boolean' => 'حالة التفعيل غير صالحة.',
+
+            'image.image' => 'ملف صورة التصنيف غير صالح.',
+'image.mimes' => 'صورة التصنيف يجب أن تكون JPG أو PNG أو WEBP.',
+'image.max' => 'حجم صورة التصنيف يجب ألا يتجاوز 5 ميغابايت.',
         ];
     }
 
