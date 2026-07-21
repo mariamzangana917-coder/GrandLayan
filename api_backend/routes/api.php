@@ -20,6 +20,9 @@ use App\Http\Controllers\Api\Customer\GiftCards\CustomerGiftCardOrderController;
 use App\Http\Controllers\Api\Customer\GiftCards\CustomerGiftCardTransactionController;
 use App\Http\Controllers\Api\Customer\Profile\CustomerProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Admin\GiftCardDesignController;
+use App\Http\Controllers\Api\Admin\AdminGiftCardController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +55,9 @@ Route::prefix('auth')
                     [AuthController::class, 'logout']
                 )->name('auth.logout');
             });
+
+
+            
     });
 
 /*
@@ -235,17 +241,35 @@ Route::prefix('customer')
 | لا يجب وضعها داخل مجموعة admin.
 |
 */
-
 Route::prefix('appointments')
     ->middleware([
         'auth:sanctum',
         'role:customer',
     ])
     ->group(function (): void {
+        Route::get(
+            '/',
+            [AppointmentController::class, 'index']
+        )->name('appointments.index');
+
         Route::post(
             '/',
             [AppointmentController::class, 'store']
         )->name('appointments.store');
+
+        Route::get(
+            '{appointment}',
+            [AppointmentController::class, 'show']
+        )
+            ->whereNumber('appointment')
+            ->name('appointments.show');
+
+        Route::post(
+            '{appointment}/cancel',
+            [AppointmentController::class, 'cancel']
+        )
+            ->whereNumber('appointment')
+            ->name('appointments.cancel');
     });
 
 /*
@@ -274,6 +298,27 @@ Route::prefix('admin')
             DashboardController::class
         )->name('admin.dashboard');
 
+/*
+|--------------------------------------------------------------------------
+| Gift Card Designs
+|--------------------------------------------------------------------------
+*/
+
+Route::delete(
+    'gift-card-designs/{giftCardDesign}/image',
+    [GiftCardDesignController::class, 'destroyImage']
+)->name('admin.gift-card-designs.image.destroy');
+
+Route::apiResource(
+    'gift-card-designs',
+    GiftCardDesignController::class
+)->parameters([
+    'gift-card-designs' => 'giftCardDesign',
+]);
+
+
+
+
         /*
 |--------------------------------------------------------------------------
 | Gift Card Orders
@@ -295,6 +340,19 @@ Route::prefix('admin')
             [AdminGiftCardOrderController::class, 'issue']
         )->name('admin.gift-card-orders.issue');
 
+
+
+Route::get(
+    'gift-cards',
+    [AdminGiftCardController::class, 'index']
+)->name('admin.gift-cards.index');
+
+Route::get(
+    'gift-cards/{giftCard}',
+    [AdminGiftCardController::class, 'show']
+)->name('admin.gift-cards.show');
+
+        
         /*
         |--------------------------------------------------------------------------
         | Coupons

@@ -102,6 +102,27 @@ class ManageAppointmentService
         );
     }
 
+/**
+ * Cancel an appointment by its customer.
+ */
+public function cancelByCustomer(
+    Appointment $appointment,
+    ?string $reason = null
+): Appointment {
+    return $this->transition(
+        $appointment,
+        Appointment::STATUS_CANCELLED,
+        fn (Appointment $locked): array => [
+            'cancelled_by' => 'customer',
+            'cancellation_reason' => filled($reason)
+                ? trim($reason)
+                : 'تم إلغاء الموعد من قبل الزبونة.',
+            'cancelled_at' => now(),
+        ]
+    );
+}
+
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -119,7 +140,7 @@ class ManageAppointmentService
                 || $effectiveStart->isFuture()
             ) {
                 $this->invalidTransition(
-                    'لا يمكن تسجيل عدم الحضور قبل حلول وقت الموعد المؤكد.'
+                  'لا يمكن تنفيذ هذا الإجراء على حالة الموعد الحالية.'
                 );
             }
 
