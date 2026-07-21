@@ -59,4 +59,99 @@ class AppointmentDetailsService {
       );
     }
   }
+
+  Future<AppointmentDetails> update({
+    required int appointmentId,
+    required DateTime requestedStartAt,
+    required DateTime? confirmedStartAt,
+    required String? adminNotes,
+  }) {
+    return _mutate(
+      '/admin/appointments/$appointmentId',
+      method: 'patch',
+      data: {
+        'requested_start_at': requestedStartAt.toUtc().toIso8601String(),
+        'confirmed_start_at': confirmedStartAt?.toUtc().toIso8601String(),
+        'admin_notes': _nullable(adminNotes),
+      },
+    );
+  }
+
+  Future<AppointmentDetails> confirm(
+    int appointmentId, {
+    DateTime? confirmedStartAt,
+  }) {
+    return _mutate(
+      '/admin/appointments/$appointmentId/confirm',
+      data: {
+        if (confirmedStartAt != null)
+          'confirmed_start_at': confirmedStartAt.toUtc().toIso8601String(),
+      },
+    );
+  }
+
+  Future<AppointmentDetails> start(int appointmentId) {
+    return _mutate('/admin/appointments/$appointmentId/start');
+  }
+
+  Future<AppointmentDetails> complete(int appointmentId) {
+    return _mutate('/admin/appointments/$appointmentId/complete');
+  }
+
+  Future<AppointmentDetails> cancel(
+    int appointmentId, {
+    required String reason,
+  }) {
+    return _mutate(
+      '/admin/appointments/$appointmentId/cancel',
+      data: {'reason': reason.trim()},
+    );
+  }
+
+  Future<AppointmentDetails> markNoShow(int appointmentId) {
+    return _mutate('/admin/appointments/$appointmentId/no-show');
+  }
+
+  Future<AppointmentDetails> _mutate(
+    String path, {
+    String method = 'post',
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      final response = method == 'patch'
+          ? await ApiClient.dio.patch(path, data: data)
+          : await ApiClient.dio.post(path, data: data);
+      final root = response.data;
+      if (root is! Map || root['data'] is! Map) {
+        throw const AppointmentException(
+          'تم تنفيذ العملية لكن تعذر قراءة بيانات الموعد.',
+        );
+      }
+      return AppointmentDetails.fromJson(
+        Map<String, dynamic>.from(root['data'] as Map),
+      );
+    } on DioException catch (error) {
+      throw AppointmentException(_message(error));
+    }
+  }
+
+  static String? _nullable(String? value) {
+    final text = value?.trim();
+    return text == null || text.isEmpty ? null : text;
+  }
+
+  static String _message(DioException error) {
+    final data = error.response?.data;
+    if (data is Map) {
+      final errors = data['errors'];
+      if (errors is Map && errors.isNotEmpty) {
+        final first = errors.values.first;
+        if (first is List && first.isNotEmpty) return first.first.toString();
+        return first.toString();
+      }
+      final message = data['message']?.toString();
+      if (message != null && message.trim().isNotEmpty) return message;
+    }
+    return 'تعذر تنفيذ العملية على الموعد.';
+  }
 }

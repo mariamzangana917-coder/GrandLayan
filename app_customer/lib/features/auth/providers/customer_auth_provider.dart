@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
@@ -52,6 +54,7 @@ class CustomerAuthNotifier extends AsyncNotifier<CustomerUser?> {
     );
 
     state = result;
+
     return !result.hasError;
   }
 
@@ -75,7 +78,44 @@ class CustomerAuthNotifier extends AsyncNotifier<CustomerUser?> {
     );
 
     state = result;
+
     return !result.hasError;
+  }
+
+  Future<CustomerUser> updateProfile({
+    required String name,
+    required String phone,
+    required String email,
+  }) async {
+    final updatedCustomer = await _repository.updateProfile(
+      name: name,
+      phone: phone,
+      email: email,
+    );
+
+    state = AsyncData(updatedCustomer);
+
+    return updatedCustomer;
+  }
+
+  Future<CustomerUser> updateAvatar({
+    required File image,
+  }) async {
+    final updatedCustomer = await _repository.updateAvatar(
+      image: image,
+    );
+
+    state = AsyncData(updatedCustomer);
+
+    return updatedCustomer;
+  }
+
+  Future<CustomerUser> deleteAvatar() async {
+    final updatedCustomer = await _repository.deleteAvatar();
+
+    state = AsyncData(updatedCustomer);
+
+    return updatedCustomer;
   }
 
   Future<void> logout() async {
@@ -91,6 +131,9 @@ class CustomerAuthNotifier extends AsyncNotifier<CustomerUser?> {
 
   Future<void> refreshSession() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(_repository.restoreSession);
+
+    state = await AsyncValue.guard(
+      _repository.restoreSession,
+    );
   }
 }

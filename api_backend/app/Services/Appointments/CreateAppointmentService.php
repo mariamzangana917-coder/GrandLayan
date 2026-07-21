@@ -14,7 +14,7 @@ class CreateAppointmentService
     /**
      * Create a complete appointment with immutable snapshots.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public function create(User $customer, array $data): Appointment
     {
@@ -73,10 +73,9 @@ class CreateAppointmentService
                     'price_type' => $catalogItem->price_type,
                     'unit_price' => $catalogItem->price,
                     'quantity' => $quantity,
-                    'duration_minutes' =>
-                        $this->calculateItemDuration(
-                            $catalogItem
-                        ),
+                    'duration_minutes' => $this->calculateItemDuration(
+                        $catalogItem
+                    ),
                 ]);
 
                 if ($catalogItem->isService()) {
@@ -84,8 +83,7 @@ class CreateAppointmentService
                         'service_id' => $catalogItem->id,
                         'service_name' => $catalogItem->name,
                         'quantity' => $quantity,
-                        'duration_minutes' =>
-                            (int) $catalogItem->duration_minutes,
+                        'duration_minutes' => (int) $catalogItem->duration_minutes,
                         'unit_price' => $catalogItem->price,
                         'scheduled_start_at' => null,
                         'scheduled_end_at' => null,
@@ -104,8 +102,7 @@ class CreateAppointmentService
                         'service_id' => $service->id,
                         'service_name' => $service->name,
                         'quantity' => $componentQuantity,
-                        'duration_minutes' =>
-                            (int) $service->duration_minutes,
+                        'duration_minutes' => (int) $service->duration_minutes,
 
                         /*
                          * The customer bought the package as one commercial
@@ -141,8 +138,7 @@ class CreateAppointmentService
         $services = $catalogItem->packageServices;
 
         $totalDuration = $services->sum(
-            fn (CatalogItem $service): int =>
-                (int) $service->duration_minutes
+            fn (CatalogItem $service): int => (int) $service->duration_minutes
                 * (int) $service->pivot->quantity
         );
 

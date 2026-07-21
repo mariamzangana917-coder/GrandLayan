@@ -71,8 +71,7 @@ class PackageItemController extends Controller
 
                     if ($alreadyExists) {
                         throw ValidationException::withMessages([
-                            'service_id' =>
-                                'هذه الخدمة مضافة مسبقًا إلى الباكج.',
+                            'service_id' => 'هذه الخدمة مضافة مسبقًا إلى الباكج.',
                         ]);
                     }
 
@@ -90,8 +89,7 @@ class PackageItemController extends Controller
              * التحقق وقبل تنفيذ الإدخال في قاعدة البيانات.
              */
             throw ValidationException::withMessages([
-                'service_id' =>
-                    'هذه الخدمة مضافة مسبقًا إلى الباكج.',
+                'service_id' => 'هذه الخدمة مضافة مسبقًا إلى الباكج.',
             ]);
         }
 

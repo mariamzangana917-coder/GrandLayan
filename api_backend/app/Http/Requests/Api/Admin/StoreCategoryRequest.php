@@ -40,7 +40,7 @@ class StoreCategoryRequest extends FormRequest
                 'string',
                 'max:2000',
             ],
-                        
+
             'image' => [
                 'nullable',
                 'image',

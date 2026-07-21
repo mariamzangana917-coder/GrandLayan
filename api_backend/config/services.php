@@ -35,4 +35,23 @@ return [
         ],
     ],
 
+    'ai' => [
+    'endpoint' => env(
+        'AI_ENDPOINT',
+        'https://api.openai.com/v1/chat/completions'
+    ),
+
+    'api_key' => env('AI_API_KEY'),
+
+    'model' => env('AI_MODEL'),
+
+    'timeout' => (int) env('AI_TIMEOUT', 30),
+],
+
+'gemini' => [
+    'api_key' => env('GEMINI_API_KEY'),
+    'model' => env('GEMINI_MODEL'),
+    'timeout' => (int) env('GEMINI_TIMEOUT', 30),
+],
+
 ];

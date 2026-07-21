@@ -9,6 +9,8 @@ class AppointmentService {
   Future<AppointmentListResponse> fetchAppointments({
     String? search,
     String? status,
+    int? departmentId,
+    DateTime? date,
     DateTime? fromDate,
     DateTime? toDate,
     int page = 1,
@@ -28,6 +30,14 @@ class AppointmentService {
 
       if (status != null && status.isNotEmpty) {
         queryParameters['status'] = status;
+      }
+
+      if (departmentId != null) {
+        queryParameters['department_id'] = departmentId;
+      }
+
+      if (date != null) {
+        queryParameters['date'] = _formatDate(date);
       }
 
       if (fromDate != null) {

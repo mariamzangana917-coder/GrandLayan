@@ -208,10 +208,8 @@ class StoreAppointmentRequest extends FormRequest
             'items.max' => 'لا يمكن اختيار أكثر من 20 عنصرًا في الحجز.',
 
             'items.*.catalog_item_id.required' => 'الخدمة أو الباكج مطلوب.',
-            'items.*.catalog_item_id.exists' =>
-                'الخدمة أو الباكج غير موجود أو غير فعال.',
-            'items.*.catalog_item_id.distinct' =>
-                'لا يمكن تكرار الخدمة أو الباكج داخل الحجز.',
+            'items.*.catalog_item_id.exists' => 'الخدمة أو الباكج غير موجود أو غير فعال.',
+            'items.*.catalog_item_id.distinct' => 'لا يمكن تكرار الخدمة أو الباكج داخل الحجز.',
 
             'items.*.quantity.required' => 'الكمية مطلوبة.',
             'items.*.quantity.integer' => 'الكمية يجب أن تكون رقمًا صحيحًا.',

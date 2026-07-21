@@ -31,37 +31,29 @@ class AdminAppointmentResource extends JsonResource
                 'name' => $this->department->name,
             ],
 
-            'requested_start_at' =>
-                $this->requested_start_at?->toISOString(),
+            'requested_start_at' => $this->requested_start_at?->toISOString(),
 
-            'confirmed_start_at' =>
-                $this->confirmed_start_at?->toISOString(),
+            'confirmed_start_at' => $this->confirmed_start_at?->toISOString(),
 
             'customer_notes' => $this->customer_notes,
             'admin_notes' => $this->admin_notes,
 
             'cancelled_by' => $this->cancelled_by,
-            'cancellation_reason' =>
-                $this->cancellation_reason,
+            'cancellation_reason' => $this->cancellation_reason,
 
-            'cancelled_at' =>
-                $this->cancelled_at?->toISOString(),
+            'cancelled_at' => $this->cancelled_at?->toISOString(),
 
-            'completed_at' =>
-                $this->completed_at?->toISOString(),
+            'completed_at' => $this->completed_at?->toISOString(),
 
-            'no_show_at' =>
-                $this->no_show_at?->toISOString(),
+            'no_show_at' => $this->no_show_at?->toISOString(),
 
             'items' => AppointmentItemResource::collection(
                 $this->whenLoaded('items')
             ),
 
-            'created_at' =>
-                $this->created_at?->toISOString(),
+            'created_at' => $this->created_at?->toISOString(),
 
-            'updated_at' =>
-                $this->updated_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

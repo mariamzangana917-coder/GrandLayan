@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Admin\StoreCatalogItemRequest;
 use App\Http\Requests\Api\Admin\UpdateCatalogItemRequest;
 use App\Http\Resources\CatalogItemResource;
 use App\Models\CatalogItem;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -16,48 +17,52 @@ class CatalogItemController extends Controller
     /**
      * Display a listing of catalog items.
      */
-    public function index(Request $request): AnonymousResourceCollection
-    {
+    public function index(
+        Request $request
+    ): AnonymousResourceCollection {
         $items = CatalogItem::query()
             ->with([
                 'category.department',
+                'images',
             ])
             ->when(
                 $request->filled('department'),
-                function ($query) use ($request): void {
+                function (Builder $query) use ($request): void {
                     $query->whereHas(
                         'category.department',
-                        fn ($departmentQuery) => $departmentQuery
-                            ->where(
+                        function (Builder $departmentQuery) use ($request): void {
+                            $departmentQuery->where(
                                 'code',
                                 (string) $request->input('department')
-                            )
+                            );
+                        }
                     );
                 }
             )
             ->when(
                 $request->filled('category_id'),
-                fn ($query) => $query->where(
-                    'category_id',
-                    $request->integer('category_id')
-                )
+                function (Builder $query) use ($request): void {
+                    $query->where(
+                        'category_id',
+                        $request->integer('category_id')
+                    );
+                }
             )
             ->when(
                 $request->filled('type'),
-                fn ($query) => $query->where(
-                    'type',
-                    (string) $request->input('type')
-                )
+                function (Builder $query) use ($request): void {
+                    $query->where(
+                        'type',
+                        (string) $request->input('type')
+                    );
+                }
             )
             ->when(
                 $request->has('is_active'),
-                function ($query) use ($request): void {
+                function (Builder $query) use ($request): void {
                     $query->where(
                         'is_active',
-                        filter_var(
-                            $request->input('is_active'),
-                            FILTER_VALIDATE_BOOLEAN
-                        )
+                        $request->boolean('is_active')
                     );
                 }
             )
@@ -77,7 +82,10 @@ class CatalogItemController extends Controller
             $request->validated()
         );
 
-        $item->load('category.department');
+        $item->load([
+            'category.department',
+            'images',
+        ]);
 
         $message = $item->isPackage()
             ? 'تم إنشاء الباكج بنجاح.'
@@ -95,7 +103,10 @@ class CatalogItemController extends Controller
     public function show(
         CatalogItem $catalogItem
     ): CatalogItemResource {
-        $catalogItem->load('category.department');
+        $catalogItem->load([
+            'category.department',
+            'images',
+        ]);
 
         return new CatalogItemResource($catalogItem);
     }
@@ -111,7 +122,10 @@ class CatalogItemController extends Controller
             $request->validated()
         );
 
-        $catalogItem->refresh()->load('category.department');
+        $catalogItem->refresh()->load([
+            'category.department',
+            'images',
+        ]);
 
         return response()->json([
             'message' => 'تم تحديث العنصر بنجاح.',
@@ -120,15 +134,11 @@ class CatalogItemController extends Controller
     }
 
     /**
-     * Soft delete the specified catalog item.
+     * Remove the specified catalog item.
      */
     public function destroy(
         CatalogItem $catalogItem
     ): JsonResponse {
-        /*
-         * A service used inside a package cannot be deleted until
-         * it is removed from all packages.
-         */
         if (
             $catalogItem->isService()
             && $catalogItem->containingPackages()->exists()
@@ -138,11 +148,6 @@ class CatalogItemController extends Controller
             ], 422);
         }
 
-        /*
-         * Package pivot rows are removed automatically by the
-         * database when the package is permanently deleted.
-         * For soft delete, the item is only hidden from normal queries.
-         */
         $catalogItem->delete();
 
         return response()->json([

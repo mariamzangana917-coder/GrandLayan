@@ -38,16 +38,13 @@ class CategoryResource extends JsonResource
 
             'is_active' => (bool) $this->is_active,
 
-            'catalog_items_count' =>
-                $this->whenCounted(
-                    'catalogItems'
-                ),
+            'catalog_items_count' => $this->whenCounted(
+                'catalogItems'
+            ),
 
-            'created_at' =>
-                $this->created_at?->toISOString(),
+            'created_at' => $this->created_at?->toISOString(),
 
-            'updated_at' =>
-                $this->updated_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

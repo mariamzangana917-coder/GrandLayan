@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -15,7 +16,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
+     * الحقول المسموح بإدخالها جماعيًا.
      *
      * @var list<string>
      */
@@ -29,7 +30,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
+     * الحقول التي يجب إخفاؤها عند تحويل الموديل إلى JSON.
      *
      * @var list<string>
      */
@@ -39,7 +40,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * تحويل أنواع الحقول.
      *
      * @return array<string, string>
      */
@@ -50,5 +51,49 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * سجلات المفضلة الخاصة بهذه الزبونة.
+     */
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(
+            CustomerFavorite::class,
+            'customer_id',
+        );
+    }
+
+    /**
+     * سجلات استخدام الكوبونات الخاصة بهذه الزبونة.
+     */
+    public function couponRedemptions(): HasMany
+    {
+        return $this->hasMany(
+            CouponRedemption::class,
+            'customer_id',
+        );
+    }
+
+    /**
+     * طلبات بطاقات الهدايا التي اشترتها هذه الزبونة.
+     */
+    public function giftCardOrders(): HasMany
+    {
+        return $this->hasMany(
+            GiftCardOrder::class,
+            'customer_id',
+        );
+    }
+
+    /**
+     * عمليات بطاقات الهدايا التي نفذها هذا المستخدم يدويًا.
+     */
+    public function performedGiftCardTransactions(): HasMany
+    {
+        return $this->hasMany(
+            GiftCardTransaction::class,
+            'performed_by_user_id',
+        );
     }
 }

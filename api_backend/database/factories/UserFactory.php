@@ -27,7 +27,7 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
 
-            'phone' => '07' . fake()->unique()->numerify('#########'),
+            'phone' => '07'.fake()->unique()->numerify('#########'),
 
             'avatar' => null,
 

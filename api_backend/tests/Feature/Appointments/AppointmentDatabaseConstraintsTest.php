@@ -357,7 +357,7 @@ class AppointmentDatabaseConstraintsTest extends TestCase
         string $status = 'pending',
     ): array {
         $reference = 'GL-TEST-'
-            . str_pad(
+            .str_pad(
                 (string) self::$referenceSequence++,
                 6,
                 '0',

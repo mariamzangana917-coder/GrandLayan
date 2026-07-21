@@ -24,8 +24,7 @@ class AppointmentItemResource extends JsonResource
 
             'quantity' => (int) $this->quantity,
 
-            'duration_minutes' =>
-                $this->duration_minutes !== null
+            'duration_minutes' => $this->duration_minutes !== null
                     ? (int) $this->duration_minutes
                     : null,
 

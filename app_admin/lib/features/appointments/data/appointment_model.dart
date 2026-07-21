@@ -3,15 +3,20 @@ class AppointmentListResponse {
     required this.appointments,
     required this.currentPage,
     required this.lastPage,
+    required this.total,
+    required this.departments,
   });
 
   final List<AdminAppointment> appointments;
   final int currentPage;
   final int lastPage;
+  final int total;
+  final List<AppointmentDepartmentFilter> departments;
 
   factory AppointmentListResponse.fromJson(Map<String, dynamic> json) {
     final rawData = json['data'];
     final rawMeta = json['meta'];
+    final rawFilters = json['filters'];
 
     final appointments = <AdminAppointment>[];
 
@@ -29,10 +34,25 @@ class AppointmentListResponse {
         ? Map<String, dynamic>.from(rawMeta)
         : <String, dynamic>{};
 
+    final departments = <AppointmentDepartmentFilter>[];
+    if (rawFilters is Map && rawFilters['departments'] is List) {
+      for (final item in rawFilters['departments'] as List) {
+        if (item is Map) {
+          departments.add(
+            AppointmentDepartmentFilter.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
+          );
+        }
+      }
+    }
+
     return AppointmentListResponse(
       appointments: appointments,
       currentPage: _toInt(meta['current_page'], fallback: 1),
       lastPage: _toInt(meta['last_page'], fallback: 1),
+      total: _toInt(meta['total'], fallback: appointments.length),
+      departments: departments,
     );
   }
 
@@ -42,6 +62,26 @@ class AppointmentListResponse {
     }
 
     return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+}
+
+class AppointmentDepartmentFilter {
+  const AppointmentDepartmentFilter({
+    required this.id,
+    required this.code,
+    required this.name,
+  });
+
+  final int id;
+  final String code;
+  final String name;
+
+  factory AppointmentDepartmentFilter.fromJson(Map<String, dynamic> json) {
+    return AppointmentDepartmentFilter(
+      id: AppointmentListResponse._toInt(json['id'], fallback: 0),
+      code: json['code']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+    );
   }
 }
 

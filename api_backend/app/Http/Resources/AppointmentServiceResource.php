@@ -23,11 +23,9 @@ class AppointmentServiceResource extends JsonResource
 
             'unit_price' => $this->unit_price,
 
-            'scheduled_start_at' =>
-                $this->scheduled_start_at?->toISOString(),
+            'scheduled_start_at' => $this->scheduled_start_at?->toISOString(),
 
-            'scheduled_end_at' =>
-                $this->scheduled_end_at?->toISOString(),
+            'scheduled_end_at' => $this->scheduled_end_at?->toISOString(),
 
             'notes' => $this->notes,
         ];

@@ -59,8 +59,7 @@ class CatalogItemImageController extends Controller
 
                     $hasPrimaryImage = $existingImages
                         ->contains(
-                            fn (CatalogItemImage $image): bool =>
-                                $image->is_primary
+                            fn (CatalogItemImage $image): bool => $image->is_primary
                         );
 
                     $nextSortOrder = ((int) $existingImages
@@ -226,8 +225,7 @@ class CatalogItemImageController extends Controller
 
                 $replacement = $images
                     ->first(
-                        fn (CatalogItemImage $image): bool =>
-                            $image->id !== $catalogItemImage->id
+                        fn (CatalogItemImage $image): bool => $image->id !== $catalogItemImage->id
                     );
 
                 if ($replacement !== null) {

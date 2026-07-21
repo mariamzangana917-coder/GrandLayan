@@ -30,11 +30,9 @@ class AppointmentResource extends JsonResource
 
             'status' => $this->status,
 
-            'requested_start_at' =>
-                $this->requested_start_at?->toISOString(),
+            'requested_start_at' => $this->requested_start_at?->toISOString(),
 
-            'confirmed_start_at' =>
-                $this->confirmed_start_at?->toISOString(),
+            'confirmed_start_at' => $this->confirmed_start_at?->toISOString(),
 
             'customer_notes' => $this->customer_notes,
 

@@ -14,9 +14,6 @@ class Department extends Model
 
     public const CLINIC = 'clinic';
 
-    /**
-     * @var list<string>
-     */
     protected $fillable = [
         'code',
         'name',
@@ -24,9 +21,6 @@ class Department extends Model
         'sort_order',
     ];
 
-    /**
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -38,5 +32,10 @@ class Department extends Model
     public function categories(): HasMany
     {
         return $this->hasMany(Category::class);
+    }
+
+    public function coupons(): HasMany
+    {
+        return $this->hasMany(Coupon::class);
     }
 }

@@ -73,13 +73,11 @@ class StoreCatalogItemRequest extends FormRequest
                 'numeric',
                 'min:0',
                 Rule::requiredIf(
-                    fn (): bool =>
-                        $this->input('price_type')
+                    fn (): bool => $this->input('price_type')
                         === CatalogItem::PRICE_TYPE_FIXED
                 ),
                 Rule::prohibitedIf(
-                    fn (): bool =>
-                        $this->input('price_type')
+                    fn (): bool => $this->input('price_type')
                         === CatalogItem::PRICE_TYPE_INSPECTION
                 ),
             ],

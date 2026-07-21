@@ -2,16 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'appointment_details_screen.dart';
+import 'appointment_edit_screen.dart';
+import 'data/appointment_details_service.dart';
 import 'data/appointment_model.dart';
 import 'data/appointment_service.dart';
-import 'appointment_details_screen.dart';
-
-enum AppointmentPeriod { today, week, month, all }
 
 class AppointmentsScreen extends StatefulWidget {
-  const AppointmentsScreen({required this.isDarkMode, super.key});
+  const AppointmentsScreen({required this.isDarkMode, this.onBack, super.key});
 
   final bool isDarkMode;
+  final VoidCallback? onBack;
 
   @override
   State<AppointmentsScreen> createState() => _AppointmentsScreenState();
@@ -19,566 +20,451 @@ class AppointmentsScreen extends StatefulWidget {
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   static const _gold = Color(0xFFB89552);
-
-  final AppointmentService _service = const AppointmentService();
-
-  final TextEditingController _searchController = TextEditingController();
-
-  Timer? _searchDebounce;
+  final _service = const AppointmentService();
+  final _detailsService = const AppointmentDetailsService();
+  final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
+  Timer? _debounce;
 
   final List<AdminAppointment> _appointments = [];
-
-  AppointmentPeriod _selectedPeriod = AppointmentPeriod.today;
-
-  String? _selectedStatus;
-
-  bool _isLoading = true;
-  bool _isLoadingMore = false;
-  String? _errorMessage;
-
-  int _currentPage = 1;
+  List<AppointmentDepartmentFilter> _departments = [];
+  String? _status;
+  int? _departmentId;
+  DateTime? _date;
+  int _page = 1;
   int _lastPage = 1;
+  int _total = 0;
+  bool _loading = true;
+  bool _loadingMore = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadAppointments();
+    _scrollController.addListener(_onScroll);
+    _load();
   }
 
   @override
   void dispose() {
-    _searchDebounce?.cancel();
+    _debounce?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadAppointments({bool refresh = false}) async {
+  void _onScroll() {
+    if (_scrollController.position.extentAfter < 280) {
+      _loadMore();
+    }
+  }
+
+  void _onSearch(String _) {
+    _debounce?.cancel();
+    _debounce = Timer(
+      const Duration(milliseconds: 400),
+      () => _load(refresh: true),
+    );
+    setState(() {});
+  }
+
+  Future<void> _load({bool refresh = false}) async {
     if (refresh) {
-      _currentPage = 1;
+      _page = 1;
       _lastPage = 1;
     }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
     try {
-      final range = _selectedDateRange();
-
       final result = await _service.fetchAppointments(
         search: _searchController.text,
-        status: _selectedStatus,
-        fromDate: range.$1,
-        toDate: range.$2,
+        status: _status,
+        departmentId: _departmentId,
+        date: _date,
         page: 1,
       );
-
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setState(() {
         _appointments
           ..clear()
           ..addAll(result.appointments);
-
-        _currentPage = result.currentPage;
+        _departments = result.departments;
+        _page = result.currentPage;
         _lastPage = result.lastPage;
-        _isLoading = false;
+        _total = result.total;
+        _loading = false;
       });
     } on AppointmentException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setState(() {
-        _errorMessage = error.message;
-        _isLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _errorMessage = 'حدث خطأ أثناء تحميل المواعيد.';
-        _isLoading = false;
+        _error = error.message;
+        _loading = false;
       });
     }
   }
 
   Future<void> _loadMore() async {
-    if (_isLoadingMore || _currentPage >= _lastPage) {
-      return;
-    }
-
-    setState(() {
-      _isLoadingMore = true;
-    });
-
+    if (_loading || _loadingMore || _page >= _lastPage) return;
+    setState(() => _loadingMore = true);
     try {
-      final range = _selectedDateRange();
-
       final result = await _service.fetchAppointments(
         search: _searchController.text,
-        status: _selectedStatus,
-        fromDate: range.$1,
-        toDate: range.$2,
-        page: _currentPage + 1,
+        status: _status,
+        departmentId: _departmentId,
+        date: _date,
+        page: _page + 1,
       );
-
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted) return;
       setState(() {
         _appointments.addAll(result.appointments);
-        _currentPage = result.currentPage;
+        _page = result.currentPage;
         _lastPage = result.lastPage;
-        _isLoadingMore = false;
+        _total = result.total;
       });
     } on AppointmentException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _isLoadingMore = false;
-      });
-
-      _showMessage(error.message);
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _isLoadingMore = false;
-      });
-
-      _showMessage('تعذر تحميل المزيد من المواعيد.');
+      if (mounted) _message(error.message);
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
     }
   }
 
-  (DateTime?, DateTime?) _selectedDateRange() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    return switch (_selectedPeriod) {
-      AppointmentPeriod.today => (today, today),
-      AppointmentPeriod.week => (today, today.add(const Duration(days: 6))),
-      AppointmentPeriod.month => (
-        DateTime(now.year, now.month, 1),
-        DateTime(now.year, now.month + 1, 0),
-      ),
-      AppointmentPeriod.all => (null, null),
-    };
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 730)),
+    );
+    if (picked == null) return;
+    setState(() => _date = picked);
+    await _load(refresh: true);
   }
 
-  void _onSearchChanged(String _) {
-    _searchDebounce?.cancel();
+  Future<void> _openDetails(AdminAppointment appointment) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AppointmentDetailsScreen(
+          appointmentId: appointment.id,
+          isDarkMode: widget.isDarkMode,
+        ),
+      ),
+    );
+    if (mounted) await _load(refresh: true);
+  }
 
-    _searchDebounce = Timer(const Duration(milliseconds: 450), () {
-      _loadAppointments(refresh: true);
-    });
+  Future<void> _confirm(AdminAppointment appointment) async {
+    final accepted = await _confirmSheet(
+      title: 'تأكيد الموعد',
+      message: 'هل تريدين تأكيد هذا الموعد في الوقت المطلوب؟',
+      confirmLabel: 'تأكيد',
+    );
+    if (!accepted) return;
+    await _runAction(
+      () => _detailsService.confirm(appointment.id),
+      'تم تأكيد الموعد.',
+    );
+  }
+
+  Future<void> _cancel(AdminAppointment appointment) async {
+    final reason = await _cancelSheet();
+    if (reason == null) return;
+    await _runAction(
+      () => _detailsService.cancel(appointment.id, reason: reason),
+      'تم إلغاء الموعد.',
+    );
+  }
+
+  Future<void> _edit(AdminAppointment appointment) async {
+    try {
+      final details = await _detailsService.fetchDetails(appointment.id);
+      if (!mounted) return;
+      final updated = await Navigator.of(context).push(
+        MaterialPageRoute<Object?>(
+          builder: (_) => AppointmentEditScreen(
+            details: details,
+            isDarkMode: widget.isDarkMode,
+          ),
+        ),
+      );
+      if (updated != null && mounted) {
+        _message('تم تعديل الموعد.');
+        await _load(refresh: true);
+      }
+    } on AppointmentException catch (error) {
+      if (mounted) _message(error.message);
+    }
+  }
+
+  Future<void> _runAction(
+    Future<Object?> Function() action,
+    String success,
+  ) async {
+    try {
+      await action();
+      if (!mounted) return;
+      _message(success);
+      await _load(refresh: true);
+    } on AppointmentException catch (error) {
+      if (mounted) _message(error.message);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = widget.isDarkMode;
-
-    final backgroundColor = isDarkMode ? Colors.black : Colors.white;
-
-    final cardColor = isDarkMode
-        ? const Color(0xFF111111)
-        : const Color(0xFFF8F8F8);
-
-    final borderColor = isDarkMode
-        ? const Color(0xFF454545)
-        : const Color(0xFFC9C9C9);
-
-    final primaryTextColor = isDarkMode
+    final background = widget.isDarkMode ? Colors.black : Colors.white;
+    final foreground = widget.isDarkMode
         ? Colors.white
         : const Color(0xFF171717);
-
-    final secondaryTextColor = isDarkMode
-        ? const Color(0xFFC2C2C2)
+    final secondary = widget.isDarkMode
+        ? const Color(0xFFBDBDBD)
         : const Color(0xFF666666);
+    final card = widget.isDarkMode
+        ? const Color(0xFF111111)
+        : const Color(0xFFF8F8F8);
+    final border = widget.isDarkMode
+        ? const Color(0xFF3A3A3A)
+        : const Color(0xFFD5D5D5);
 
-    final fieldColor = isDarkMode
-        ? const Color(0xFF141414)
-        : const Color(0xFFF7F4EE);
-
-    return Container(
-      color: backgroundColor,
-      child: RefreshIndicator(
-        color: _gold,
-        onRefresh: () => _loadAppointments(refresh: true),
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      controller: _searchController,
-                      onChanged: _onSearchChanged,
-                      textInputAction: TextInputAction.search,
-                      decoration: InputDecoration(
-                        hintText: 'ابحثي باسم العميلة أو الرقم أو رقم الحجز',
-                        hintStyle: TextStyle(
-                          fontSize: 13,
-                          color: secondaryTextColor,
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search_rounded,
-                          color: secondaryTextColor,
-                        ),
-                        suffixIcon: _searchController.text.isEmpty
-                            ? null
-                            : IconButton(
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _loadAppointments(refresh: true);
-                                  setState(() {});
-                                },
-                                icon: const Icon(Icons.close_rounded),
-                              ),
-                        filled: true,
-                        fillColor: fieldColor,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 13,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: borderColor,
-                            width: 0.8,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: _gold,
-                            width: 1.3,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildStatusSelector(
-                      primaryTextColor: primaryTextColor,
-                      secondaryTextColor: secondaryTextColor,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.tune_rounded,
-                          size: 21,
-                          color: secondaryTextColor,
-                        ),
-                        const SizedBox(width: 7),
-                        _buildPeriodDropdown(
-                          cardColor: cardColor,
-                          borderColor: borderColor,
-                          primaryTextColor: primaryTextColor,
-                          secondaryTextColor: secondaryTextColor,
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${_appointments.length} موعد',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: secondaryTextColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (_isLoading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator(color: _gold)),
-              )
-            else if (_errorMessage != null)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _buildErrorState(
-                  message: _errorMessage!,
-                  cardColor: cardColor,
-                  borderColor: borderColor,
-                  primaryTextColor: primaryTextColor,
-                ),
-              )
-            else if (_appointments.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _buildEmptyState(
-                  cardColor: cardColor,
-                  borderColor: borderColor,
-                  primaryTextColor: primaryTextColor,
-                  secondaryTextColor: secondaryTextColor,
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
-                sliver: SliverList.separated(
-                  itemCount: _appointments.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final appointment = _appointments[index];
-
-                    return _buildAppointmentCard(
-                      appointment: appointment,
-                      cardColor: cardColor,
-                      borderColor: borderColor,
-                      primaryTextColor: primaryTextColor,
-                      secondaryTextColor: secondaryTextColor,
-                      isDarkMode: isDarkMode,
-                    );
-                  },
-                ),
-              ),
-            if (!_isLoading &&
-                _errorMessage == null &&
-                _appointments.isNotEmpty &&
-                _currentPage < _lastPage)
+    return Scaffold(
+      backgroundColor: background,
+      appBar: AppBar(
+        backgroundColor: background,
+        foregroundColor: foreground,
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          tooltip: 'رجوع',
+          onPressed: widget.onBack ?? () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        title: const Text(
+          'المواعيد',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+      ),
+      body: Directionality(
+        textDirection: TextDirection.rtl,
+        child: RefreshIndicator(
+          color: _gold,
+          onRefresh: () => _load(refresh: true),
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  child: OutlinedButton(
-                    onPressed: _isLoadingMore ? null : _loadMore,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(44),
-                      side: const BorderSide(color: _gold),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _searchController,
+                        onChanged: _onSearch,
+                        decoration: InputDecoration(
+                          hintText: 'ابحثي بالاسم أو الهاتف أو رقم الحجز',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: _searchController.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _load(refresh: true);
+                                    setState(() {});
+                                  },
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
+                          filled: true,
+                          fillColor: card,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: border),
+                          ),
+                        ),
                       ),
-                    ),
-                    child: _isLoadingMore
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: _gold,
+                      const SizedBox(height: 12),
+                      _statusChips(secondary),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<int?>(
+                              value: _departmentId,
+                              decoration: const InputDecoration(
+                                labelText: 'القسم',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: [
+                                const DropdownMenuItem<int?>(
+                                  value: null,
+                                  child: Text('كل الأقسام'),
+                                ),
+                                ..._departments.map(
+                                  (item) => DropdownMenuItem<int?>(
+                                    value: item.id,
+                                    child: Text(item.name),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() => _departmentId = value);
+                                _load(refresh: true);
+                              },
                             ),
-                          )
-                        : const Text('تحميل المزيد'),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _pickDate,
+                              icon: const Icon(Icons.calendar_today_outlined),
+                              label: Text(
+                                _date == null
+                                    ? 'كل التواريخ'
+                                    : '${_date!.day}/${_date!.month}/${_date!.year}',
+                              ),
+                            ),
+                          ),
+                          if (_date != null)
+                            IconButton(
+                              tooltip: 'مسح التاريخ',
+                              onPressed: () {
+                                setState(() => _date = null);
+                                _load(refresh: true);
+                              },
+                              icon: const Icon(Icons.close),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          'عدد النتائج: $_total',
+                          style: TextStyle(
+                            color: secondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPeriodDropdown({
-    required Color cardColor,
-    required Color borderColor,
-    required Color primaryTextColor,
-    required Color secondaryTextColor,
-  }) {
-    return PopupMenuButton<AppointmentPeriod>(
-      initialValue: _selectedPeriod,
-      tooltip: 'اختيار الفترة',
-      color: cardColor,
-      elevation: 6,
-      position: PopupMenuPosition.under,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: borderColor, width: 1),
-      ),
-      onSelected: (period) {
-        if (period == _selectedPeriod) {
-          return;
-        }
-
-        setState(() {
-          _selectedPeriod = period;
-        });
-
-        _loadAppointments(refresh: true);
-      },
-      itemBuilder: (context) {
-        return AppointmentPeriod.values.map((period) {
-          final isSelected = period == _selectedPeriod;
-
-          return PopupMenuItem<AppointmentPeriod>(
-            value: period,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _periodLabel(period),
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected
-                          ? FontWeight.w800
-                          : FontWeight.w500,
-                      color: isSelected ? _gold : primaryTextColor,
+              if (_loading)
+                const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator(color: _gold)),
+                )
+              else if (_error != null)
+                SliverFillRemaining(
+                  child: _stateCard(
+                    icon: Icons.cloud_off_outlined,
+                    title: _error!,
+                    action: 'إعادة المحاولة',
+                    onPressed: () => _load(refresh: true),
+                    card: card,
+                    border: border,
+                    foreground: foreground,
+                  ),
+                )
+              else if (_appointments.isEmpty)
+                SliverFillRemaining(
+                  child: _stateCard(
+                    icon: Icons.event_available_outlined,
+                    title: 'لا توجد مواعيد مطابقة للفلاتر الحالية.',
+                    card: card,
+                    border: border,
+                    foreground: foreground,
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  sliver: SliverList.separated(
+                    itemCount: _appointments.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (_, index) => _appointmentCard(
+                      _appointments[index],
+                      card,
+                      border,
+                      foreground,
+                      secondary,
                     ),
                   ),
                 ),
-                if (isSelected) ...[
-                  const SizedBox(width: 10),
-                  const Icon(Icons.check_rounded, size: 18, color: _gold),
-                ],
-              ],
-            ),
-          );
-        }).toList();
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _periodLabel(_selectedPeriod),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: primaryTextColor,
-              ),
-            ),
-            const SizedBox(width: 5),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 22,
-              color: secondaryTextColor,
-            ),
-          ],
+              if (_loadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(18),
+                    child: Center(
+                      child: CircularProgressIndicator(color: _gold),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusSelector({
-    required Color primaryTextColor,
-    required Color secondaryTextColor,
-  }) {
-    final statuses = <(String?, String)>[
+  Widget _statusChips(Color secondary) {
+    const values = <(String?, String)>[
       (null, 'الكل'),
       ('pending', 'انتظار'),
       ('confirmed', 'مؤكد'),
-      ('in_progress', 'تنفيذ'),
+      ('in_progress', 'قيد التنفيذ'),
       ('completed', 'مكتمل'),
       ('cancelled', 'ملغي'),
       ('no_show', 'لم تحضر'),
     ];
-
     return SizedBox(
-      height: 46,
+      height: 42,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: statuses.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 18),
-        itemBuilder: (context, index) {
-          final status = statuses[index];
-          final isSelected = status.$1 == _selectedStatus;
-
-          return InkWell(
-            onTap: () {
-              if (_selectedStatus == status.$1) {
-                return;
-              }
-
-              setState(() {
-                _selectedStatus = status.$1;
-              });
-
-              _loadAppointments(refresh: true);
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    status.$2,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isSelected ? _gold : secondaryTextColor,
-                      fontWeight: isSelected
-                          ? FontWeight.w800
-                          : FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: isSelected ? 28 : 0,
-                    height: 2.4,
-                    decoration: BoxDecoration(
-                      color: isSelected ? _gold : Colors.transparent,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ],
-              ),
+        itemCount: values.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (_, index) {
+          final item = values[index];
+          return ChoiceChip(
+            label: Text(item.$2),
+            selected: _status == item.$1,
+            selectedColor: _gold.withValues(alpha: 0.2),
+            labelStyle: TextStyle(
+              color: _status == item.$1 ? _gold : secondary,
+              fontWeight: FontWeight.w700,
             ),
+            onSelected: (_) {
+              setState(() => _status = item.$1);
+              _load(refresh: true);
+            },
           );
         },
       ),
     );
   }
 
-  Widget _buildAppointmentCard({
-    required AdminAppointment appointment,
-    required Color cardColor,
-    required Color borderColor,
-    required Color primaryTextColor,
-    required Color secondaryTextColor,
-    required bool isDarkMode,
-  }) {
-    final statusStyle = _statusStyle(appointment.status);
-
+  Widget _appointmentCard(
+    AdminAppointment item,
+    Color card,
+    Color border,
+    Color foreground,
+    Color secondary,
+  ) {
+    final status = _statusStyle(item.status);
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (context) => AppointmentDetailsScreen(
-                appointmentId: appointment.id,
-                isDarkMode: widget.isDarkMode,
-              ),
-            ),
-          );
-
-          if (mounted) {
-            await _loadAppointments(refresh: true);
-          }
-        },
+        onTap: () => _openDetails(item),
         borderRadius: BorderRadius.circular(17),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: cardColor,
+            color: card,
             borderRadius: BorderRadius.circular(17),
-            border: Border.all(color: borderColor, width: 0.8),
+            border: Border.all(color: border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -587,147 +473,76 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      appointment.customerName,
-                      textAlign: TextAlign.right,
+                      item.customerName,
                       style: TextStyle(
+                        color: foreground,
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: primaryTextColor,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 9,
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: statusStyle.$2,
+                      color: status.$2,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
-                      statusStyle.$1,
+                      status.$1,
                       style: TextStyle(
+                        color: status.$3,
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        color: statusStyle.$3,
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 9),
-              Row(
-                children: [
-                  Icon(
-                    appointment.departmentCode == 'clinic'
-                        ? Icons.medical_services_outlined
-                        : Icons.spa_outlined,
-                    size: 17,
-                    color: _gold,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    appointment.departmentName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      appointment.servicesText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    Icons.schedule_rounded,
-                    size: 17,
-                    color: secondaryTextColor,
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      _formatDate(appointment.requestedStartAt),
-                      style: TextStyle(fontSize: 12, color: secondaryTextColor),
-                    ),
-                  ),
-                  Text(
-                    appointment.reference,
-                    style: TextStyle(fontSize: 10, color: secondaryTextColor),
-                  ),
-                ],
+              Text(
+                '${item.departmentName} • ${item.servicesText}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: secondary),
               ),
-              if (appointment.status == 'pending' ||
-                  appointment.status == 'confirmed') ...[
+              const SizedBox(height: 6),
+              Text(
+                '${_formatDate(item.confirmedStartAt ?? item.requestedStartAt)}'
+                '  |  ${item.reference}',
+                style: TextStyle(color: secondary, fontSize: 12),
+              ),
+              if (item.status == 'pending' || item.status == 'confirmed') ...[
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () {
-                          _showMessage('تعديل الموعد سيكون في صفحة التفاصيل.');
-                        },
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(40),
-                          side: const BorderSide(color: _gold),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'تعديل',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        onPressed: () => _edit(item),
+                        child: const Text('تعديل'),
                       ),
                     ),
-                    const SizedBox(width: 9),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: FilledButton(
-                        onPressed: () {
-                          _showMessage(
-                            appointment.status == 'pending'
-                                ? 'ربط تأكيد الموعد سيكون بالخطوة التالية.'
-                                : 'ربط بدء الخدمة سيكون بالخطوة التالية.',
-                          );
-                        },
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(40),
-                          backgroundColor: isDarkMode
-                              ? const Color(0xFFD3B06B)
-                              : const Color(0xFF171717),
-                          foregroundColor: isDarkMode
-                              ? Colors.black
-                              : Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                      child: OutlinedButton(
+                        onPressed: () => _cancel(item),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFB42318),
                         ),
-                        child: Text(
-                          appointment.status == 'pending'
-                              ? 'تأكيد'
-                              : 'بدء الخدمة',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        child: const Text('إلغاء'),
                       ),
                     ),
+                    if (item.status == 'pending') ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => _confirm(item),
+                          child: const Text('تأكيد'),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -738,92 +553,39 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
   }
 
-  Widget _buildErrorState({
-    required String message,
-    required Color cardColor,
-    required Color borderColor,
-    required Color primaryTextColor,
+  Widget _stateCard({
+    required IconData icon,
+    required String title,
+    required Color card,
+    required Color border,
+    required Color foreground,
+    String? action,
+    VoidCallback? onPressed,
   }) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Center(
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
         child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: borderColor),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off_outlined, size: 32, color: _gold),
-              const SizedBox(height: 10),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: primaryTextColor),
-              ),
-              const SizedBox(height: 14),
-              OutlinedButton.icon(
-                onPressed: () {
-                  _loadAppointments(refresh: true);
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('إعادة المحاولة'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState({
-    required Color cardColor,
-    required Color borderColor,
-    required Color primaryTextColor,
-    required Color secondaryTextColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Center(
-        child: Container(
-          width: double.infinity,
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
-            color: cardColor,
+            color: card,
+            border: Border.all(color: border),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: borderColor),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.event_available_outlined,
-                size: 34,
-                color: _gold,
-              ),
-              const SizedBox(height: 10),
+              Icon(icon, color: _gold, size: 36),
+              const SizedBox(height: 12),
               Text(
-                'لا توجد مواعيد',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: primaryTextColor,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                'غيّري الفترة أو الحالة أو امسحي البحث لعرض نتائج أخرى.',
+                title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.5,
-                  color: secondaryTextColor,
-                ),
+                style: TextStyle(color: foreground),
               ),
+              if (action != null) ...[
+                const SizedBox(height: 14),
+                OutlinedButton(onPressed: onPressed, child: Text(action)),
+              ],
             ],
           ),
         ),
@@ -831,13 +593,97 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
   }
 
-  String _periodLabel(AppointmentPeriod period) {
-    return switch (period) {
-      AppointmentPeriod.today => 'اليوم',
-      AppointmentPeriod.week => 'الأسبوع',
-      AppointmentPeriod.month => 'الشهر',
-      AppointmentPeriod.all => 'الكل',
-    };
+  Future<bool> _confirmSheet({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) async {
+    return await showModalBottomSheet<bool>(
+          context: context,
+          showDragHandle: true,
+          builder: (sheetContext) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(message, textAlign: TextAlign.center),
+                  const SizedBox(height: 18),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(sheetContext, true),
+                    child: Text(confirmLabel),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheetContext, false),
+                    child: const Text('تراجع'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ) ??
+        false;
+  }
+
+  Future<String?> _cancelSheet() async {
+    final controller = TextEditingController();
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'إلغاء الموعد',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 1000,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'سبب الإلغاء',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                final reason = controller.text.trim();
+                if (reason.isNotEmpty) Navigator.pop(sheetContext, reason);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB42318),
+              ),
+              child: const Text('تأكيد الإلغاء'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    return result;
   }
 
   (String, Color, Color) _statusStyle(String status) {
@@ -869,27 +715,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 
   String _formatDate(DateTime? date) {
-    if (date == null) {
-      return 'لم يحدد الوقت';
-    }
-
-    final localDate = date.toLocal();
-
-    final hour = localDate.hour > 12
-        ? localDate.hour - 12
-        : localDate.hour == 0
-        ? 12
-        : localDate.hour;
-
-    final minute = localDate.minute.toString().padLeft(2, '0');
-
-    final period = localDate.hour >= 12 ? 'مساءً' : 'صباحًا';
-
-    return '${localDate.day}/${localDate.month}/${localDate.year}، '
-        '$hour:$minute $period';
+    if (date == null) return 'غير محدد';
+    final local = date.toLocal();
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '${local.day}/${local.month}/${local.year} '
+        '${local.hour}:$minute';
   }
 
-  void _showMessage(String message) {
+  void _message(String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));

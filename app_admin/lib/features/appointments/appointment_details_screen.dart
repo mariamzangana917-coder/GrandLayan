@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'data/appointment_details_model.dart';
 import 'data/appointment_details_service.dart';
 import 'data/appointment_service.dart';
+import 'appointment_edit_screen.dart';
 
 class AppointmentDetailsScreen extends StatefulWidget {
   const AppointmentDetailsScreen({
@@ -27,6 +28,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
   AppointmentDetails? _details;
   String? _errorMessage;
   bool _isLoading = true;
+  bool _isActionRunning = false;
 
   @override
   void initState() {
@@ -610,7 +612,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
     final primaryAction = switch (details.status) {
       'pending' => 'تأكيد الموعد',
       'confirmed' => 'بدء الخدمة',
-      'in_progress' => 'إنهاء الخدمة',
+      'in_progress' => 'إكمال الموعد',
       _ => null,
     };
 
@@ -627,9 +629,9 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
             width: double.infinity,
             height: 46,
             child: FilledButton(
-              onPressed: () {
-                _showComingSoon(primaryAction);
-              },
+              onPressed: _isActionRunning
+                  ? null
+                  : () => _runPrimaryAction(details),
               style: FilledButton.styleFrom(
                 backgroundColor: isDarkMode
                     ? const Color(0xFFD3B06B)
@@ -654,9 +656,7 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {
-                    _showComingSoon('تعديل الموعد');
-                  },
+                  onPressed: () => _openEdit(details),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(43),
                     side: const BorderSide(color: _gold),
@@ -670,9 +670,9 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {
-                    _showComingSoon('إلغاء الموعد');
-                  },
+                  onPressed: _isActionRunning
+                      ? null
+                      : () => _showCancelSheet(details),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(43),
                     foregroundColor: const Color(0xFFB42318),
@@ -686,6 +686,13 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
               ),
             ],
           ),
+          if (details.status == 'confirmed') ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _isActionRunning ? null : () => _markNoShow(details),
+              child: const Text('تسجيل لم تحضر'),
+            ),
+          ],
         ],
       ],
     );
@@ -748,11 +755,150 @@ class _AppointmentDetailsScreenState extends State<AppointmentDetailsScreen> {
     return '$formatted د.ع';
   }
 
-  void _showComingSoon(String action) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('سيتم ربط $action بالـ Backend في الخطوة التالية.'),
+  Future<void> _runPrimaryAction(AppointmentDetails details) async {
+    final title = switch (details.status) {
+      'pending' => 'تأكيد الموعد',
+      'confirmed' => 'بدء الخدمة',
+      _ => 'إكمال الموعد',
+    };
+    if (!await _confirmationSheet(title)) return;
+
+    await _runAction(() {
+      return switch (details.status) {
+        'pending' => _service.confirm(details.id),
+        'confirmed' => _service.start(details.id),
+        'in_progress' => _service.complete(details.id),
+        _ => Future.value(details),
+      };
+    });
+  }
+
+  Future<void> _markNoShow(AppointmentDetails details) async {
+    if (!await _confirmationSheet('تسجيل عدم الحضور')) return;
+    await _runAction(() => _service.markNoShow(details.id));
+  }
+
+  Future<void> _openEdit(AppointmentDetails details) async {
+    final updated = await Navigator.of(context).push<AppointmentDetails>(
+      MaterialPageRoute(
+        builder: (_) => AppointmentEditScreen(
+          details: details,
+          isDarkMode: widget.isDarkMode,
+        ),
       ),
     );
+    if (updated != null && mounted) {
+      setState(() => _details = updated);
+      _message('تم تعديل الموعد.');
+    }
+  }
+
+  Future<void> _showCancelSheet(AppointmentDetails details) async {
+    final controller = TextEditingController();
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          0,
+          20,
+          MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'إلغاء الموعد',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 3,
+              maxLength: 1000,
+              decoration: const InputDecoration(
+                labelText: 'سبب الإلغاء',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) Navigator.pop(sheetContext, value);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB42318),
+              ),
+              child: const Text('تأكيد الإلغاء'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (reason != null) {
+      await _runAction(() => _service.cancel(details.id, reason: reason));
+    }
+  }
+
+  Future<bool> _confirmationSheet(String title) async {
+    return await showModalBottomSheet<bool>(
+          context: context,
+          showDragHandle: true,
+          builder: (sheetContext) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(sheetContext, true),
+                    child: const Text('تأكيد'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheetContext, false),
+                    child: const Text('تراجع'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _runAction(Future<AppointmentDetails> Function() action) async {
+    setState(() => _isActionRunning = true);
+    try {
+      final updated = await action();
+      if (!mounted) return;
+      setState(() => _details = updated);
+      _message('تم تحديث الموعد بنجاح.');
+    } on AppointmentException catch (error) {
+      if (mounted) _message(error.message);
+    } finally {
+      if (mounted) setState(() => _isActionRunning = false);
+    }
+  }
+
+  void _message(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

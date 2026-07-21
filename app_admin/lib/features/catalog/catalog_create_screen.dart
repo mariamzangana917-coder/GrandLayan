@@ -232,26 +232,29 @@ class _CatalogCreateScreenState extends State<CatalogCreateScreen> {
     });
 
     try {
-      final itemId = await _service.createCatalogItem(
-        categoryId: _selectedCategory!.id,
-        type: _itemKind == CatalogItemKind.service ? 'service' : 'package',
-        name: _nameController.text,
-        description: _descriptionController.text,
-        instructions: _instructionsController.text,
-        priceType: _priceKind == CatalogPriceKind.fixed
-            ? 'fixed'
-            : 'inspection',
-        price: price,
-        durationMinutes: duration,
-        isActive: _isActive,
-      );
+ final itemId = await _service.createCatalogItem(
+  categoryId: _selectedCategory!.id,
+  type: _itemKind == CatalogItemKind.service
+      ? 'service'
+      : 'package',
+  name: _nameController.text,
+  description: _descriptionController.text,
+  instructions: _instructionsController.text,
+  priceType: _priceKind == CatalogPriceKind.fixed
+      ? 'fixed'
+      : 'inspection',
+  price: price,
+  durationMinutes: duration,
+  isActive: _isActive,
+);
 
-      if (_images.isNotEmpty) {
-        await _service.uploadImages(
-          catalogItemId: itemId,
-          imagePaths: _images.map((image) => image.path).toList(),
-        );
-      }
+if (_images.isNotEmpty) {
+  await _service.uploadImages(
+    catalogItemId: itemId,
+    imagePaths:
+        _images.map((image) => image.path).toList(),
+  );
+}
 
       if (_itemKind == CatalogItemKind.package) {
         await _service.addPackageServices(

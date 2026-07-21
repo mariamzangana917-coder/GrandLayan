@@ -194,8 +194,7 @@ class CategoryController extends Controller
     ): JsonResponse {
         if ($category->catalogItems()->exists()) {
             return response()->json([
-                'message' =>
-                    'لا يمكن حذف التصنيف لأنه مرتبط بخدمات أو باكجات.',
+                'message' => 'لا يمكن حذف التصنيف لأنه مرتبط بخدمات أو باكجات.',
             ], 422);
         }
 

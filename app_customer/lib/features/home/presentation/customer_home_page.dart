@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/luxury_theme_toggle.dart';
 import '../../../core/theme/theme_mode_notifier.dart';
+import '../../auth/providers/customer_auth_provider.dart';
+import '../../../core/network/api_url.dart';
 
 class CustomerHomePage extends ConsumerStatefulWidget {
   const CustomerHomePage({
@@ -69,7 +71,7 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
         break;
 
       case 3:
-        _showComingSoon('المحادثة');
+        context.pushNamed('ask-grand-layan');
         break;
 
       case 4:
@@ -81,6 +83,22 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
   @override
   Widget build(BuildContext context) {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+
+    final authState = ref.watch(customerAuthProvider);
+
+    final customer = authState.when(
+      data: (value) => value,
+      loading: () => null,
+      error: (_, _) => null,
+    );
+
+    final customerName = customer?.name.isNotEmpty == true
+        ? customer!.name
+        : widget.customerName;
+
+    final String? customerAvatarUrl = ApiUrl.resolveStorageUrl(
+      customer?.avatar ?? widget.customerAvatarUrl,
+    );
 
     final backgroundColor = isDark
         ? const Color(0xFF000000)
@@ -140,8 +158,8 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
                       SizedBox(height: isCompact ? 8 : 11),
 
                       _WelcomeCard(
-                        customerName: widget.customerName,
-                        customerAvatarUrl: widget.customerAvatarUrl,
+                        customerName: customerName,
+                        customerAvatarUrl: customerAvatarUrl,
                         isDark: isDark,
                         surfaceColor: surfaceColor,
                         primaryTextColor: primaryTextColor,
@@ -157,7 +175,7 @@ class _CustomerHomePageState extends ConsumerState<CustomerHomePage> {
                         primaryTextColor: primaryTextColor,
                         isCompact: isCompact,
                         onTap: () {
-                          _showComingSoon('اسأل كراند ليان');
+                          context.pushNamed('ask-grand-layan');
                         },
                       ),
 

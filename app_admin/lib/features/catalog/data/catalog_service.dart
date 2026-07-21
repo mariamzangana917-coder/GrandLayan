@@ -211,21 +211,21 @@ class CatalogService {
     }
   }
 
-  Future<void> setMainImage(
-    int itemId,
-    int imageId,
-  ) async {
-    try {
-      await ApiClient.dio.patch(
-        '/admin/catalog-items/$itemId/images/$imageId',
-        data: {'is_main': true},
-      );
-    } on DioException catch (error) {
-      throw CatalogException(
-        _message(error, 'تعذر تعيين الصورة الرئيسية.'),
-      );
-    }
+ Future<void> setMainImage(
+  int itemId,
+  int imageId,
+) async {
+  try {
+    await ApiClient.dio.patch(
+      '/admin/catalog-items/$itemId/images/$imageId',
+      data: {'is_primary': true},
+    );
+  } on DioException catch (error) {
+    throw CatalogException(
+      _message(error, 'تعذر تعيين الصورة الرئيسية.'),
+    );
   }
+}
 
   static String? _nullable(String? value) {
     final text = value?.trim();

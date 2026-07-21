@@ -1,12 +1,13 @@
 import 'package:go_router/go_router.dart';
-import '../../features/clinic/presentation/clinic_page.dart';
+
 import '../../features/auth/presentation/customer_auth_gate.dart';
 import '../../features/auth/presentation/customer_login_page.dart';
 import '../../features/auth/presentation/customer_register_page.dart';
 import '../../features/auth/presentation/welcome_page.dart';
-import '../../features/salon/presentation/salon_page.dart';
+import '../../features/chat/presentation/grand_layan_chat_page.dart';
+import '../../features/clinic/presentation/clinic_page.dart';
 import '../../features/main/presentation/customer_main_shell.dart';
-
+import '../../features/salon/presentation/salon_page.dart';
 
 abstract final class AppRouter {
   static final GoRouter router = GoRouter(
@@ -36,13 +37,7 @@ abstract final class AppRouter {
           return const CustomerLoginPage();
         },
       ),
-      GoRoute(
-        path: '/clinic',
-        name: 'clinic',
-        builder: (context, state) {
-          return const ClinicPage();
-        },
-      ),
+
       GoRoute(
         path: '/customer/register',
         name: 'customer-register',
@@ -64,6 +59,22 @@ abstract final class AppRouter {
         name: 'salon',
         builder: (context, state) {
           return const SalonPage();
+        },
+      ),
+
+      GoRoute(
+        path: '/clinic',
+        name: 'clinic',
+        builder: (context, state) {
+          return const ClinicPage();
+        },
+      ),
+
+      GoRoute(
+        path: '/ask-grand-layan',
+        name: 'ask-grand-layan',
+        builder: (context, state) {
+          return const GrandLayanChatPage();
         },
       ),
     ],

@@ -403,7 +403,7 @@ class CustomerAuthControllerTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      */
     private function createCustomer(
         array $attributes = []

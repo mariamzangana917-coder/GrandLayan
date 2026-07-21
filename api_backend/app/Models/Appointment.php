@@ -24,6 +24,33 @@ class Appointment extends Model
 
     public const STATUS_NO_SHOW = 'no_show';
 
+    public const STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_CONFIRMED,
+        self::STATUS_IN_PROGRESS,
+        self::STATUS_COMPLETED,
+        self::STATUS_CANCELLED,
+        self::STATUS_NO_SHOW,
+    ];
+
+    private const TRANSITIONS = [
+        self::STATUS_PENDING => [
+            self::STATUS_CONFIRMED,
+            self::STATUS_CANCELLED,
+        ],
+        self::STATUS_CONFIRMED => [
+            self::STATUS_IN_PROGRESS,
+            self::STATUS_CANCELLED,
+            self::STATUS_NO_SHOW,
+        ],
+        self::STATUS_IN_PROGRESS => [
+            self::STATUS_COMPLETED,
+        ],
+        self::STATUS_COMPLETED => [],
+        self::STATUS_CANCELLED => [],
+        self::STATUS_NO_SHOW => [],
+    ];
+
     /**
      * @var list<string>
      */
@@ -77,5 +104,23 @@ class Appointment extends Model
     {
         return $this->hasMany(AppointmentItem::class)
             ->orderBy('id');
+    }
+
+    public function canBeEdited(): bool
+    {
+        return in_array(
+            $this->status,
+            [self::STATUS_PENDING, self::STATUS_CONFIRMED],
+            true
+        );
+    }
+
+    public function canTransitionTo(string $status): bool
+    {
+        return in_array(
+            $status,
+            self::TRANSITIONS[$this->status] ?? [],
+            true
+        );
     }
 }

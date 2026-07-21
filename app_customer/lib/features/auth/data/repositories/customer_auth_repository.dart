@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
+
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/storage/secure_storage_service.dart';
@@ -51,15 +55,71 @@ class CustomerAuthRepository {
     return _saveSessionFromResponse(response);
   }
 
+  Future<CustomerUser> updateProfile({
+    required String name,
+    required String phone,
+    required String email,
+  }) async {
+    final response = await _apiClient.put(
+      '/customer/profile',
+      data: {
+        'name': name.trim(),
+        'phone': phone.replaceAll(' ', '').trim(),
+        'email': email.trim().toLowerCase(),
+      },
+    );
+
+    return _readValidatedCustomer(response);
+  }
+
+  Future<CustomerUser> updateAvatar({
+    required File image,
+  }) async {
+    if (!await image.exists()) {
+      throw const ApiException(
+        message: 'الصورة المختارة غير موجودة.',
+      );
+    }
+
+    final fileName = image.path
+        .split(Platform.pathSeparator)
+        .last;
+
+    final formData = FormData.fromMap({
+      'avatar': await MultipartFile.fromFile(
+        image.path,
+        filename: fileName,
+      ),
+    });
+
+    final response = await _apiClient.post(
+      '/customer/profile/avatar',
+      data: formData,
+    );
+
+    return _readValidatedCustomer(response);
+  }
+
+  Future<CustomerUser> deleteAvatar() async {
+    final response = await _apiClient.delete(
+      '/customer/profile/avatar',
+    );
+
+    return _readValidatedCustomer(response);
+  }
+
   Future<CustomerUser?> restoreSession() async {
     final token = await _storage.readCustomerToken();
 
-    if (token == null) {
+    if (token == null || token.trim().isEmpty) {
       return null;
     }
 
     try {
-      final response = await _apiClient.get('/customer/auth/me');
+      final response = await _apiClient.get(
+        '/customer/auth/me',
+      );
+
       final customer = _readUser(response);
 
       if (customer.role != 'customer') {
@@ -69,7 +129,10 @@ class CustomerAuthRepository {
 
       return customer;
     } on ApiException catch (error) {
-      if (error.statusCode == 401 || error.statusCode == 403) {
+      if (
+          error.statusCode == 401 ||
+          error.statusCode == 403
+      ) {
         await _storage.deleteCustomerToken();
         return null;
       }
@@ -80,7 +143,9 @@ class CustomerAuthRepository {
 
   Future<void> logout() async {
     try {
-      await _apiClient.post('/customer/auth/logout');
+      await _apiClient.post(
+        '/customer/auth/logout',
+      );
     } finally {
       await _storage.deleteCustomerToken();
     }
@@ -106,20 +171,31 @@ class CustomerAuthRepository {
       );
     }
 
+    final customer = _readValidatedCustomer(response);
+
+    await _storage.saveCustomerToken(token.trim());
+
+    return customer;
+  }
+
+  CustomerUser _readValidatedCustomer(
+    Map<String, dynamic> response,
+  ) {
     final customer = _readUser(response);
 
     if (customer.role != 'customer') {
       throw const ApiException(
-        message: 'هذا الحساب غير مخصص لتطبيق الزبونة.',
+        message: 'بيانات الحساب المستلمة غير صالحة.',
         statusCode: 403,
       );
     }
 
-    await _storage.saveCustomerToken(token.trim());
     return customer;
   }
 
-  CustomerUser _readUser(Map<String, dynamic> response) {
+  CustomerUser _readUser(
+    Map<String, dynamic> response,
+  ) {
     final data = response['data'];
 
     if (data is! Map) {

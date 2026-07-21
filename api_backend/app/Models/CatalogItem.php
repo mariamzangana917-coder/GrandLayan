@@ -49,11 +49,17 @@ class CatalogItem extends Model
         ];
     }
 
+    /**
+     * التصنيف.
+     */
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
+    /**
+     * صور الخدمة أو البكج.
+     */
     public function images(): HasMany
     {
         return $this->hasMany(CatalogItemImage::class)
@@ -62,6 +68,9 @@ class CatalogItem extends Model
             ->orderBy('id');
     }
 
+    /**
+     * الصورة الرئيسية.
+     */
     public function primaryImage(): HasMany
     {
         return $this->hasMany(CatalogItemImage::class)
@@ -69,7 +78,18 @@ class CatalogItem extends Model
     }
 
     /**
-     * Services included in this package.
+     * سجلات المفضلة الخاصة بهذه الخدمة أو البكج.
+     */
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(
+            CustomerFavorite::class,
+            'catalog_item_id',
+        );
+    }
+
+    /**
+     * الخدمات الموجودة داخل البكج.
      */
     public function packageServices(): BelongsToMany
     {
@@ -87,7 +107,7 @@ class CatalogItem extends Model
     }
 
     /**
-     * Packages containing this service.
+     * البكجات التي تحتوي هذه الخدمة.
      */
     public function containingPackages(): BelongsToMany
     {
@@ -102,6 +122,17 @@ class CatalogItem extends Model
                 'notes',
             ])
             ->withTimestamps();
+    }
+
+    /**
+     * الكوبونات المرتبطة بالخدمة أو البكج.
+     */
+    public function coupons(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Coupon::class,
+            'coupon_catalog_item'
+        )->withTimestamps();
     }
 
     public function isService(): bool

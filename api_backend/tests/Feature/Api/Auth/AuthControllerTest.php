@@ -201,78 +201,80 @@ class AuthControllerTest extends TestCase
             'name' => 'Manager iPhone',
         ]);
     }
-public function test_logout_deletes_only_current_device_token(): void
-{
-    $manager = $this->createUser('manager');
 
-    $firstTokenResult = $manager->createToken(
-        'Manager Android Phone',
-        ['admin']
-    );
+    public function test_logout_deletes_only_current_device_token(): void
+    {
+        $manager = $this->createUser('manager');
 
-    $secondTokenResult = $manager->createToken(
-        'Manager iPhone',
-        ['admin']
-    );
-
-    $firstToken = $firstTokenResult->plainTextToken;
-    $secondToken = $secondTokenResult->plainTextToken;
-
-    $firstTokenId = $firstTokenResult->accessToken->id;
-    $secondTokenId = $secondTokenResult->accessToken->id;
-
-    $this->assertDatabaseCount('personal_access_tokens', 2);
-
-    $response = $this
-        ->withToken($firstToken)
-        ->postJson('/api/auth/logout');
-
-    $response
-        ->assertOk()
-        ->assertJsonPath(
-            'message',
-            'تم تسجيل الخروج بنجاح.'
+        $firstTokenResult = $manager->createToken(
+            'Manager Android Phone',
+            ['admin']
         );
 
-    /*
-     * The current device token must be deleted.
-     */
-    $this->assertDatabaseMissing('personal_access_tokens', [
-        'id' => $firstTokenId,
-    ]);
+        $secondTokenResult = $manager->createToken(
+            'Manager iPhone',
+            ['admin']
+        );
 
-    /*
-     * The other device token must remain active.
-     */
-    $this->assertDatabaseHas('personal_access_tokens', [
-        'id' => $secondTokenId,
-        'tokenable_id' => $manager->id,
-        'name' => 'Manager iPhone',
-    ]);
+        $firstToken = $firstTokenResult->plainTextToken;
+        $secondToken = $secondTokenResult->plainTextToken;
 
-    $this->assertDatabaseCount('personal_access_tokens', 1);
+        $firstTokenId = $firstTokenResult->accessToken->id;
+        $secondTokenId = $secondTokenResult->accessToken->id;
 
-    /*
-     * Clear Laravel's cached authentication guards before making
-     * another request inside the same test.
-     */
-    $this->app['auth']->forgetGuards();
+        $this->assertDatabaseCount('personal_access_tokens', 2);
 
-    $this
-        ->withToken($firstToken)
-        ->getJson('/api/auth/me')
-        ->assertUnauthorized();
+        $response = $this
+            ->withToken($firstToken)
+            ->postJson('/api/auth/logout');
 
-    $this->app['auth']->forgetGuards();
+        $response
+            ->assertOk()
+            ->assertJsonPath(
+                'message',
+                'تم تسجيل الخروج بنجاح.'
+            );
 
-    $this
-        ->withToken($secondToken)
-        ->getJson('/api/auth/me')
-        ->assertOk()
-        ->assertJsonPath('data.user.id', $manager->id);
-}
+        /*
+         * The current device token must be deleted.
+         */
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'id' => $firstTokenId,
+        ]);
+
+        /*
+         * The other device token must remain active.
+         */
+        $this->assertDatabaseHas('personal_access_tokens', [
+            'id' => $secondTokenId,
+            'tokenable_id' => $manager->id,
+            'name' => 'Manager iPhone',
+        ]);
+
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+
+        /*
+         * Clear Laravel's cached authentication guards before making
+         * another request inside the same test.
+         */
+        $this->app['auth']->forgetGuards();
+
+        $this
+            ->withToken($firstToken)
+            ->getJson('/api/auth/me')
+            ->assertUnauthorized();
+
+        $this->app['auth']->forgetGuards();
+
+        $this
+            ->withToken($secondToken)
+            ->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.user.id', $manager->id);
+    }
+
     /**
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      */
     private function createUser(
         string $role,

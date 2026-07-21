@@ -1,4 +1,4 @@
-import 'dart:async';
+
 
 import 'package:flutter/material.dart';
 
@@ -29,13 +29,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
   final TextEditingController _search =
       TextEditingController();
 
-  Timer? _debounce;
 
   DepartmentFilter _department =
       DepartmentFilter.salon;
   TypeFilter _type = TypeFilter.all;
 
-  List<CatalogItem> _items = [];
+ List<CatalogItem> _allItems = [];
+List<CatalogItem> _items = [];
 
   bool _loading = true;
   String? _error;
@@ -46,12 +46,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _search.dispose();
-    super.dispose();
-  }
+@override
+void dispose() {
+  _search.dispose();
+  super.dispose();
+}
 
   Future<void> _load() async {
     setState(() {
@@ -68,10 +67,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
       if (!mounted) return;
 
-      setState(() {
-        _items = page.items;
-        _loading = false;
-      });
+     setState(() {
+  _allItems = page.items;
+  _loading = false;
+});
+
+_applySearch();
+
     } on CatalogException catch (error) {
       if (!mounted) return;
 
@@ -95,14 +97,71 @@ class _CatalogScreenState extends State<CatalogScreen> {
     };
   }
 
-  void _onSearch(String _) {
-    setState(() {});
-    _debounce?.cancel();
-    _debounce = Timer(
-      const Duration(milliseconds: 180),
-      _load,
-    );
-  }
+void _onSearch(String _) {
+  _applySearch();
+}
+
+void _applySearch() {
+  final query = _normalizeArabic(_search.text);
+
+  final filtered = _allItems.where((item) {
+    if (item.departmentCode != _departmentCode) {
+      return false;
+    }
+
+    if (_typeCode != null && item.type != _typeCode) {
+      return false;
+    }
+
+    if (query.isEmpty) {
+      return true;
+    }
+
+    final name = _normalizeArabic(item.name);
+    final category = _normalizeArabic(item.categoryName);
+    final description =
+        _normalizeArabic(item.description ?? '');
+
+    return name.startsWith(query) ||
+        name.contains(query) ||
+        category.startsWith(query) ||
+        category.contains(query) ||
+        description.contains(query);
+  }).toList();
+
+  filtered.sort((a, b) {
+    final aName = _normalizeArabic(a.name);
+    final bName = _normalizeArabic(b.name);
+
+    final aStarts = aName.startsWith(query);
+    final bStarts = bName.startsWith(query);
+
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+
+    return aName.compareTo(bName);
+  });
+
+  if (!mounted) return;
+
+  setState(() {
+    _items = filtered;
+  });
+}
+
+String _normalizeArabic(String value) {
+  return value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '')
+      .replaceAll('أ', 'ا')
+      .replaceAll('إ', 'ا')
+      .replaceAll('آ', 'ا')
+      .replaceAll('ى', 'ي')
+      .replaceAll('ؤ', 'و')
+      .replaceAll('ئ', 'ي')
+      .replaceAll('ـ', '');
+}
 
   Future<void> _openCreate() async {
     final changed = await Navigator.of(context).push<bool>(
@@ -198,11 +257,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     children: [
                       if (_search.text.isNotEmpty)
                         IconButton(
-                          onPressed: () {
-                            _search.clear();
-                            setState(() {});
-                            _load();
-                          },
+                         onPressed: () {
+  _search.clear();
+  _applySearch();
+},
                           icon: const Icon(
                             Icons.close_rounded,
                           ),

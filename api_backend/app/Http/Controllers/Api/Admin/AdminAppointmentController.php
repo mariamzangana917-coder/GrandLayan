@@ -3,139 +3,72 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Admin\CancelAdminAppointmentRequest;
+use App\Http\Requests\Api\Admin\ConfirmAdminAppointmentRequest;
+use App\Http\Requests\Api\Admin\IndexAdminAppointmentRequest;
+use App\Http\Requests\Api\Admin\UpdateAdminAppointmentRequest;
+use App\Http\Requests\Api\Admin\UpdateAdminAppointmentStatusRequest;
 use App\Http\Resources\AdminAppointmentResource;
 use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
-use Illuminate\Http\Request;
+use App\Models\Department;
+use App\Services\Appointments\ManageAppointmentService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AdminAppointmentController extends Controller
 {
     public function index(
-        Request $request
+        IndexAdminAppointmentRequest $request
     ): AnonymousResourceCollection {
-        $validated = $request->validate([
-            'search' => [
-                'nullable',
-                'string',
-                'max:150',
-            ],
+        $validated = $request->validated();
 
-            'status' => [
-                'nullable',
-                'string',
-                'in:pending,confirmed,in_progress,completed,cancelled,no_show',
-            ],
-
-            'department_id' => [
-                'nullable',
-                'integer',
-                'exists:departments,id',
-            ],
-
-            'date' => [
-                'nullable',
-                'date_format:Y-m-d',
-            ],
-
-            'from_date' => [
-                'nullable',
-                'date_format:Y-m-d',
-            ],
-
-            'to_date' => [
-                'nullable',
-                'date_format:Y-m-d',
-                'after_or_equal:from_date',
-            ],
-
-            'per_page' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:50',
-            ],
-        ]);
-
-        $query = Appointment::query()
+        $appointments = Appointment::query()
             ->with([
                 'customer',
                 'department',
                 'items.services',
-            ]);
+            ])
+            ->when(
+                $validated['search'] ?? null,
+                function (Builder $query, string $search): void {
+                    $search = trim($search);
 
-        if (! empty($validated['search'])) {
-            $search = trim($validated['search']);
-
-            $query->where(function ($query) use ($search): void {
-                $query
-                    ->where(
-                        'reference',
-                        'ilike',
-                        "%{$search}%"
-                    )
-                    ->orWhereHas(
-                        'customer',
-                        function ($customerQuery) use ($search): void {
-                            $customerQuery
-                                ->where(
-                                    'name',
-                                    'ilike',
-                                    "%{$search}%"
-                                )
-                                ->orWhere(
-                                    'phone',
-                                    'ilike',
-                                    "%{$search}%"
-                                )
-                                ->orWhere(
-                                    'email',
-                                    'ilike',
-                                    "%{$search}%"
-                                );
-                        }
-                    );
-            });
-        }
-
-        if (! empty($validated['status'])) {
-            $query->where(
-                'status',
-                $validated['status']
-            );
-        }
-
-        if (! empty($validated['department_id'])) {
-            $query->where(
-                'department_id',
-                $validated['department_id']
-            );
-        }
-
-        if (! empty($validated['date'])) {
-            $query->whereDate(
-                'requested_start_at',
-                $validated['date']
-            );
-        }
-
-        if (! empty($validated['from_date'])) {
-            $query->whereDate(
-                'requested_start_at',
-                '>=',
-                $validated['from_date']
-            );
-        }
-
-        if (! empty($validated['to_date'])) {
-            $query->whereDate(
-                'requested_start_at',
-                '<=',
-                $validated['to_date']
-            );
-        }
-
-        $appointments = $query
+                    $query->where(function (Builder $query) use ($search): void {
+                        $query
+                            ->where('reference', 'ilike', "%{$search}%")
+                            ->orWhereHas(
+                                'customer',
+                                function (Builder $customerQuery) use ($search): void {
+                                    $customerQuery
+                                        ->where('name', 'ilike', "%{$search}%")
+                                        ->orWhere('phone', 'ilike', "%{$search}%")
+                                        ->orWhere('email', 'ilike', "%{$search}%");
+                                }
+                            );
+                    });
+                }
+            )
+            ->when(
+                $validated['status'] ?? null,
+                fn (Builder $query, string $status) => $query->where('status', $status)
+            )
+            ->when(
+                $validated['department_id'] ?? null,
+                fn (Builder $query, int $departmentId) => $query->where('department_id', $departmentId)
+            )
+            ->when(
+                $validated['date'] ?? null,
+                fn (Builder $query, string $date) => $query->whereDate('requested_start_at', $date)
+            )
+            ->when(
+                $validated['from_date'] ?? null,
+                fn (Builder $query, string $date) => $query->whereDate('requested_start_at', '>=', $date)
+            )
+            ->when(
+                $validated['to_date'] ?? null,
+                fn (Builder $query, string $date) => $query->whereDate('requested_start_at', '<=', $date)
+            )
             ->orderByRaw(
                 "CASE
                     WHEN status = 'pending' THEN 1
@@ -148,28 +81,93 @@ class AdminAppointmentController extends Controller
                 END"
             )
             ->orderBy('requested_start_at')
-            ->paginate(
-                $validated['per_page'] ?? 15
-            )
+            ->paginate($validated['per_page'] ?? 15)
             ->withQueryString();
 
-        return AppointmentResource::collection(
-            $appointments
+        return AppointmentResource::collection($appointments)
+            ->additional([
+                'filters' => [
+                    'departments' => Department::query()
+                        ->orderBy('sort_order')
+                        ->get(['id', 'code', 'name']),
+                ],
+            ]);
+    }
+
+    public function show(
+        Appointment $appointment
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $this->load($appointment)
         );
     }
 
-    
-        public function show(
-    Appointment $appointment
-): AdminAppointmentResource {
-    $appointment->load([
-        'customer',
-        'department',
-        'items.services',
-    ]);
+    public function update(
+        UpdateAdminAppointmentRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->update($appointment, $request->validated())
+        );
+    }
 
-    return new AdminAppointmentResource(
-        $appointment
-    );
-}
+    public function confirm(
+        ConfirmAdminAppointmentRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->confirm($appointment, $request->validated())
+        );
+    }
+
+    public function start(
+        UpdateAdminAppointmentStatusRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->start($appointment, $request->validated())
+        );
+    }
+
+    public function complete(
+        UpdateAdminAppointmentStatusRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->complete($appointment, $request->validated())
+        );
+    }
+
+    public function cancel(
+        CancelAdminAppointmentRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->cancel($appointment, $request->validated())
+        );
+    }
+
+    public function noShow(
+        UpdateAdminAppointmentStatusRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->markNoShow($appointment, $request->validated())
+        );
+    }
+
+    private function load(Appointment $appointment): Appointment
+    {
+        return $appointment->load([
+            'customer',
+            'department',
+            'items.services',
+        ]);
+    }
 }

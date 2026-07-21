@@ -121,7 +121,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 isLoading: _isDashboardLoading,
                 errorMessage: _dashboardError,
               ),
-              AppointmentsScreen(isDarkMode: isDarkMode),
+              AppointmentsScreen(
+                isDarkMode: isDarkMode,
+                onBack: () {
+                  setState(() {
+                    _selectedIndex = 0;
+                  });
+                },
+              ),
               CustomersScreen(isDarkMode: isDarkMode),
               _buildMorePage(
                 backgroundColor: backgroundColor,
