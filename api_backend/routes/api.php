@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\Admin\CustomerController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\PackageItemController;
 use App\Http\Controllers\Api\Appointments\AppointmentController;
+
+use App\Http\Controllers\Api\Admin\AdminGiftCardTransactionController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Customer\Auth\CustomerAuthController;
 use App\Http\Controllers\Api\Customer\Catalog\CustomerCatalogController;
@@ -225,10 +227,15 @@ Route::prefix('customer')
             [CustomerGiftCardController::class, 'show']
         )->name('customer.gift-cards.show');
 
+
+
+        
         Route::get(
             'gift-cards/{giftCard}/transactions',
             [CustomerGiftCardTransactionController::class, 'index']
         )->name('customer.gift-cards.transactions.index');
+
+        
 
     });
 
@@ -352,7 +359,17 @@ Route::get(
     [AdminGiftCardController::class, 'show']
 )->name('admin.gift-cards.show');
 
-        
+
+Route::post(
+    'gift-cards/{giftCard}/redeem',
+    [AdminGiftCardTransactionController::class, 'redeem']
+)->name('admin.gift-cards.redeem');
+
+Route::post(
+    'gift-cards/{giftCard}/refund',
+    [AdminGiftCardTransactionController::class, 'refund']
+)->name('admin.gift-cards.refund');
+
         /*
         |--------------------------------------------------------------------------
         | Coupons

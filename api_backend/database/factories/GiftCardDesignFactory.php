@@ -22,7 +22,7 @@ class GiftCardDesignFactory extends Factory
         return [
             'name' => fake()->unique()->words(3, true),
             'description' => fake()->optional()->sentence(),
-            'image_path' => 'gift-cards/designs/'.fake()->uuid().'.jpg',
+            'image_path' => 'gift-card-designs/'.fake()->uuid().'.jpg',
             'amount' => fake()->randomElement([
                 25000,
                 50000,
@@ -46,6 +46,17 @@ class GiftCardDesignFactory extends Factory
             'is_active' => false,
         ]);
     }
+
+
+    /**
+ * Create a design without an image.
+ */
+public function withoutImage(): static
+{
+    return $this->state(fn (): array => [
+        'image_path' => null,
+    ]);
+}
 
     /**
      * Set a specific Gift Card amount.

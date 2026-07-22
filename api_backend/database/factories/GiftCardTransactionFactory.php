@@ -33,7 +33,7 @@ class GiftCardTransactionFactory extends Factory
             'gift_card_id' => GiftCard::factory()
                 ->withBalance($amount),
             'appointment_id' => null,
-            'performed_by_user_id' => auth()->id(),
+             'performed_by_user_id' => null,
             'type' => GiftCardTransaction::TYPE_ISSUANCE,
             'amount' => $amount,
             'balance_before' => 0,
