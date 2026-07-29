@@ -534,3 +534,5 @@ Route::post(
             [PackageItemController::class, 'destroy']
         )->name('packages.items.destroy');
     });
+
+require __DIR__.'/offers.php';
