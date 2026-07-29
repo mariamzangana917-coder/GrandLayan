@@ -11,7 +11,7 @@ use App\Http\Controllers\Api\Admin\CustomerController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\PackageItemController;
 use App\Http\Controllers\Api\Appointments\AppointmentController;
-
+use App\Http\Controllers\Api\Customer\GiftCards\CustomerGiftCardDesignController;
 use App\Http\Controllers\Api\Admin\AdminGiftCardTransactionController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Customer\Auth\CustomerAuthController;
@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\Customer\Profile\CustomerProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Admin\GiftCardDesignController;
 use App\Http\Controllers\Api\Admin\AdminGiftCardController;
+
 
 
 /*
@@ -121,7 +122,6 @@ Route::prefix('customer/auth')
 | هذه المسارات خاصة ببيانات الزبونة ومفضلاتها.
 |
 */
-
 Route::prefix('customer')
     ->middleware([
         'auth:sanctum',
@@ -189,6 +189,17 @@ Route::prefix('customer')
 
         /*
         |--------------------------------------------------------------------------
+        | Customer Gift Card Designs
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get(
+            'gift-card-designs',
+            [CustomerGiftCardDesignController::class, 'index']
+        )->name('customer.gift-card-designs.index');
+
+        /*
+        |--------------------------------------------------------------------------
         | Customer Gift Card Orders
         |--------------------------------------------------------------------------
         */
@@ -227,18 +238,11 @@ Route::prefix('customer')
             [CustomerGiftCardController::class, 'show']
         )->name('customer.gift-cards.show');
 
-
-
-        
         Route::get(
             'gift-cards/{giftCard}/transactions',
             [CustomerGiftCardTransactionController::class, 'index']
         )->name('customer.gift-cards.transactions.index');
-
-        
-
     });
-
 /*
 |--------------------------------------------------------------------------
 | Customer Appointment Routes
@@ -277,6 +281,10 @@ Route::prefix('appointments')
         )
             ->whereNumber('appointment')
             ->name('appointments.cancel');
+
+
+
+            
     });
 
 /*
