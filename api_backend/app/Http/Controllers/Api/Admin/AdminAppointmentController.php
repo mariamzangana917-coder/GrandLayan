@@ -27,6 +27,7 @@ class AdminAppointmentController extends Controller
             ->with([
                 'customer',
                 'department',
+                'coupon',
                 'items.services',
             ])
             ->when(
@@ -167,6 +168,7 @@ class AdminAppointmentController extends Controller
         return $appointment->load([
             'customer',
             'department',
+            'coupon',
             'items.services',
         ]);
     }

@@ -10,6 +10,19 @@ use Illuminate\Validation\Validator;
 
 class StoreAppointmentRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('coupon_code')) {
+            $couponCode = trim((string) $this->input('coupon_code'));
+
+            $this->merge([
+                'coupon_code' => $couponCode !== ''
+                    ? strtoupper($couponCode)
+                    : null,
+            ]);
+        }
+    }
+
     /**
      * Only an active customer may create an appointment.
      */
@@ -50,6 +63,13 @@ class StoreAppointmentRequest extends FormRequest
                 'nullable',
                 'string',
                 'max:1000',
+            ],
+
+            'coupon_code' => [
+                'nullable',
+                'string',
+                'max:50',
+                'alpha_dash:ascii',
             ],
 
             'items' => [
@@ -201,6 +221,10 @@ class StoreAppointmentRequest extends FormRequest
             'requested_start_at.after' => 'يجب اختيار موعد في المستقبل.',
 
             'customer_notes.max' => 'ملاحظات الحجز طويلة جدًا.',
+
+            'coupon_code.string' => 'رمز الكوبون غير صالح.',
+            'coupon_code.max' => 'رمز الكوبون طويل جدًا.',
+            'coupon_code.alpha_dash' => 'رمز الكوبون يجب أن يحتوي على أحرف إنجليزية وأرقام وشرطة فقط.',
 
             'items.required' => 'يجب اختيار خدمة أو باكج واحد على الأقل.',
             'items.array' => 'قائمة الخدمات غير صالحة.',

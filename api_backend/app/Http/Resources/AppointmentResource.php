@@ -28,6 +28,22 @@ class AppointmentResource extends JsonResource
                 'name' => $this->department->name,
             ],
 
+            'coupon' => $this->relationLoaded('coupon')
+                ? ($this->coupon !== null
+                    ? [
+                        'id' => $this->coupon->id,
+                        'name' => $this->coupon->name,
+                        'code' => $this->coupon->code,
+                        'discount_type' => $this->coupon->discount_type,
+                        'discount_value' => $this->coupon->discount_value,
+                    ]
+                    : null)
+                : null,
+
+            'subtotal_amount' => $this->subtotal_amount,
+            'discount_amount' => $this->discount_amount,
+            'final_amount' => $this->final_amount,
+
             'status' => $this->status,
 
             'requested_start_at' => $this->requested_start_at?->toISOString(),
@@ -35,6 +51,10 @@ class AppointmentResource extends JsonResource
             'confirmed_start_at' => $this->confirmed_start_at?->toISOString(),
 
             'customer_notes' => $this->customer_notes,
+
+            'cancelled_by' => $this->cancelled_by,
+            'cancellation_reason' => $this->cancellation_reason,
+            'cancelled_at' => $this->cancelled_at?->toISOString(),
 
             'items' => AppointmentItemResource::collection(
                 $this->whenLoaded('items')

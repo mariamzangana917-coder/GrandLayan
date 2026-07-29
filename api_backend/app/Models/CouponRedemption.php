@@ -10,6 +10,10 @@ class CouponRedemption extends Model
 {
     use HasFactory;
 
+    public const STATUS_APPLIED = 'applied';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
     protected $fillable = [
         'coupon_id',
         'customer_id',
@@ -18,11 +22,15 @@ class CouponRedemption extends Model
         'discount_amount',
         'final_amount',
         'redeemed_at',
+        'status',
     ];
 
     protected function casts(): array
     {
         return [
+            'coupon_id' => 'integer',
+            'customer_id' => 'integer',
+            'appointment_id' => 'integer',
             'subtotal_amount' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'final_amount' => 'decimal:2',
@@ -45,8 +53,6 @@ class CouponRedemption extends Model
 
     public function appointment(): BelongsTo
     {
-        return $this->belongsTo(
-            Appointment::class
-        );
+        return $this->belongsTo(Appointment::class);
     }
 }

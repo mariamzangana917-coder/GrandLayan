@@ -15,9 +15,6 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AppointmentController extends Controller
 {
-    /**
-     * Display the authenticated customer's appointments.
-     */
     public function index(
         Request $request
     ): AnonymousResourceCollection {
@@ -26,6 +23,7 @@ class AppointmentController extends Controller
             ->with([
                 'customer',
                 'department',
+                'coupon',
                 'items.services',
             ])
             ->orderByRaw(
@@ -37,9 +35,6 @@ class AppointmentController extends Controller
         return AppointmentResource::collection($appointments);
     }
 
-    /**
-     * Store a newly created customer appointment.
-     */
     public function store(
         StoreAppointmentRequest $request,
         CreateAppointmentService $service
@@ -55,9 +50,6 @@ class AppointmentController extends Controller
         ], 201);
     }
 
-    /**
-     * Display one appointment owned by the authenticated customer.
-     */
     public function show(
         Request $request,
         int $appointment
@@ -70,9 +62,6 @@ class AppointmentController extends Controller
         return new AppointmentResource($customerAppointment);
     }
 
-    /**
-     * Cancel one appointment owned by the authenticated customer.
-     */
     public function cancel(
         CancelCustomerAppointmentRequest $request,
         int $appointment,
@@ -94,11 +83,6 @@ class AppointmentController extends Controller
         ]);
     }
 
-    /**
-     * Find an appointment belonging only to the current customer.
-     *
-     * Using a customer-scoped query prevents IDOR attacks.
-     */
     private function findCustomerAppointment(
         int $customerId,
         int $appointmentId
@@ -108,6 +92,7 @@ class AppointmentController extends Controller
             ->with([
                 'customer',
                 'department',
+                'coupon',
                 'items.services',
             ])
             ->findOrFail($appointmentId);

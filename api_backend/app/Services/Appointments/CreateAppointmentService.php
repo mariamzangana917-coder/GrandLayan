@@ -4,6 +4,7 @@ namespace App\Services\Appointments;
 
 use App\Models\Appointment;
 use App\Models\CatalogItem;
+use App\Models\Coupon;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,10 @@ use Illuminate\Support\Str;
 
 class CreateAppointmentService
 {
+    public function __construct(
+        private readonly AppointmentCouponService $appointmentCouponService,
+    ) {}
+
     /**
      * Create a complete appointment with immutable snapshots.
      *
@@ -37,10 +42,26 @@ class CreateAppointmentService
                 ->get()
                 ->keyBy('id');
 
+            $pricing = $this->appointmentCouponService->preparePricing(
+                customer: $customer,
+                departmentId: (int) $data['department_id'],
+                catalogItems: $catalogItems,
+                submittedItems: $data['items'],
+                couponCode: $data['coupon_code'] ?? null,
+            );
+
+            $coupon = $pricing['coupon'];
+
             $appointment = Appointment::query()->create([
                 'reference' => $this->generateUniqueReference(),
                 'customer_id' => $customer->id,
                 'department_id' => (int) $data['department_id'],
+                'coupon_id' => $coupon instanceof Coupon
+                    ? $coupon->id
+                    : null,
+                'subtotal_amount' => $pricing['subtotal_amount'],
+                'discount_amount' => $pricing['discount_amount'],
+                'final_amount' => $pricing['final_amount'],
                 'status' => Appointment::STATUS_PENDING,
                 'requested_start_at' => $data['requested_start_at'],
                 'confirmed_start_at' => null,
@@ -53,10 +74,6 @@ class CreateAppointmentService
                     (int) $submittedItem['catalog_item_id']
                 );
 
-                /*
-                 * The request validation guarantees this item exists.
-                 * This additional check protects against unexpected races.
-                 */
                 if (! $catalogItem instanceof CatalogItem) {
                     abort(
                         422,
@@ -103,14 +120,7 @@ class CreateAppointmentService
                         'service_name' => $service->name,
                         'quantity' => $componentQuantity,
                         'duration_minutes' => (int) $service->duration_minutes,
-
-                        /*
-                         * The customer bought the package as one commercial
-                         * item, so its components do not receive separate
-                         * prices in the appointment.
-                         */
                         'unit_price' => null,
-
                         'scheduled_start_at' => null,
                         'scheduled_end_at' => null,
                         'notes' => $service->pivot->notes,
@@ -118,12 +128,21 @@ class CreateAppointmentService
                 }
             }
 
-            return $appointment
-                ->load([
-                    'customer',
-                    'department',
-                    'items.services',
-                ]);
+            if ($coupon instanceof Coupon) {
+                $this->appointmentCouponService->recordRedemption(
+                    coupon: $coupon,
+                    customer: $customer,
+                    appointment: $appointment,
+                    pricing: $pricing,
+                );
+            }
+
+            return $appointment->load([
+                'customer',
+                'department',
+                'coupon',
+                'items.services',
+            ]);
         }, 3);
     }
 

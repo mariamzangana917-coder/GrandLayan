@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Appointment extends Model
@@ -58,6 +59,10 @@ class Appointment extends Model
         'reference',
         'customer_id',
         'department_id',
+        'coupon_id',
+        'subtotal_amount',
+        'discount_amount',
+        'final_amount',
         'status',
         'requested_start_at',
         'confirmed_start_at',
@@ -78,7 +83,10 @@ class Appointment extends Model
         return [
             'customer_id' => 'integer',
             'department_id' => 'integer',
-
+            'coupon_id' => 'integer',
+            'subtotal_amount' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
+            'final_amount' => 'decimal:2',
             'requested_start_at' => 'datetime',
             'confirmed_start_at' => 'datetime',
             'cancelled_at' => 'datetime',
@@ -98,6 +106,16 @@ class Appointment extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
+    }
+
+    public function couponRedemption(): HasOne
+    {
+        return $this->hasOne(CouponRedemption::class);
     }
 
     public function items(): HasMany

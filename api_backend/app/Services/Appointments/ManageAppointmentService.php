@@ -8,6 +8,10 @@ use Illuminate\Validation\ValidationException;
 
 class ManageAppointmentService
 {
+    public function __construct(
+        private readonly AppointmentCouponService $appointmentCouponService,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -102,26 +106,22 @@ class ManageAppointmentService
         );
     }
 
-/**
- * Cancel an appointment by its customer.
- */
-public function cancelByCustomer(
-    Appointment $appointment,
-    ?string $reason = null
-): Appointment {
-    return $this->transition(
-        $appointment,
-        Appointment::STATUS_CANCELLED,
-        fn (Appointment $locked): array => [
-            'cancelled_by' => 'customer',
-            'cancellation_reason' => filled($reason)
-                ? trim($reason)
-                : 'تم إلغاء الموعد من قبل الزبونة.',
-            'cancelled_at' => now(),
-        ]
-    );
-}
-
+    public function cancelByCustomer(
+        Appointment $appointment,
+        ?string $reason = null
+    ): Appointment {
+        return $this->transition(
+            $appointment,
+            Appointment::STATUS_CANCELLED,
+            fn (Appointment $locked): array => [
+                'cancelled_by' => 'customer',
+                'cancellation_reason' => filled($reason)
+                    ? trim($reason)
+                    : 'تم إلغاء الموعد من قبل الزبونة.',
+                'cancelled_at' => now(),
+            ]
+        );
+    }
 
     /**
      * @param  array<string, mixed>  $data
@@ -140,7 +140,7 @@ public function cancelByCustomer(
                 || $effectiveStart->isFuture()
             ) {
                 $this->invalidTransition(
-                  'لا يمكن تنفيذ هذا الإجراء على حالة الموعد الحالية.'
+                    'لا يمكن تنفيذ هذا الإجراء على حالة الموعد الحالية.'
                 );
             }
 
@@ -179,6 +179,11 @@ public function cancelByCustomer(
                 ...$attributes($locked),
             ]);
 
+            if ($targetStatus === Appointment::STATUS_CANCELLED) {
+                $this->appointmentCouponService
+                    ->releaseForAppointment($locked);
+            }
+
             return $this->load($locked);
         }, 3);
     }
@@ -196,6 +201,7 @@ public function cancelByCustomer(
         return $appointment->load([
             'customer',
             'department',
+            'coupon',
             'items.services',
         ]);
     }
