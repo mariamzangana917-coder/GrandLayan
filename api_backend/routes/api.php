@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
+use App\Http\Controllers\Api\Customer\BannerController as CustomerBannerController;
+
 use App\Http\Controllers\Api\Customer\Chat\CustomerChatController;
 use App\Http\Controllers\Api\Admin\AdminAppointmentController;
 use App\Http\Controllers\Api\Admin\AdminGiftCardOrderController;
@@ -129,7 +132,11 @@ Route::prefix('customer')
     ])
     ->group(function (): void {
 
-        /*
+                Route::get(
+            'banners',
+            [CustomerBannerController::class, 'index']
+        )->name('customer.banners.index');
+/*
         |--------------------------------------------------------------------------
         | Customer Catalog
         |--------------------------------------------------------------------------
@@ -302,7 +309,16 @@ Route::prefix('admin')
         'role:manager',
     ])
     ->group(function (): void {
-        /*
+                Route::post(
+            'banners/reorder',
+            [AdminBannerController::class, 'reorder']
+        )->name('admin.banners.reorder');
+
+        Route::apiResource(
+            'banners',
+            AdminBannerController::class
+        );
+/*
         |--------------------------------------------------------------------------
         | Dashboard
         |--------------------------------------------------------------------------
