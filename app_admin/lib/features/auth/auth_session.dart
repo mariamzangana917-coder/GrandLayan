@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/network/api_client.dart';
+import '../../core/notifications/admin_device_token_service.dart';
 import '../../core/storage/token_storage.dart';
 
 enum AuthStatus { checking, authenticated, unauthenticated }
@@ -48,6 +49,8 @@ class AuthSession extends ChangeNotifier {
       _manager = _extractUser(response.data);
       _errorMessage = null;
       _status = AuthStatus.authenticated;
+
+      await AdminDeviceTokenService.start();
     } on DioException catch (error) {
       final statusCode = error.response?.statusCode;
 
@@ -100,6 +103,7 @@ class AuthSession extends ChangeNotifier {
       }
 
       await TokenStorage.saveToken(token);
+      await AdminDeviceTokenService.start();
 
       _manager = _extractUser(response.data);
       _status = AuthStatus.authenticated;
@@ -125,6 +129,8 @@ class AuthSession extends ChangeNotifier {
 
   Future<void> logout() async {
     final token = await TokenStorage.readToken();
+
+    await AdminDeviceTokenService.deactivate();
 
     if (token != null && token.trim().isNotEmpty) {
       try {

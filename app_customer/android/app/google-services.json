@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "892678351903",
+    "project_id": "grand-layan",
+    "storage_bucket": "grand-layan.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:892678351903:android:a9e40f6e8351450183b92a",
+        "android_client_info": {
+          "package_name": "com.grandlayan.app_admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7pnEO4X9mMlBvSNUpLcjALTH3Bdo_eMU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:892678351903:android:87c122f3443fd99f83b92a",
+        "android_client_info": {
+          "package_name": "com.grandlayan.app_customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7pnEO4X9mMlBvSNUpLcjALTH3Bdo_eMU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

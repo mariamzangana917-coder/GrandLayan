@@ -4,18 +4,22 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/notifications/customer_device_token_service.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../models/customer_user.dart';
 
 class CustomerAuthRepository {
-  const CustomerAuthRepository({
+  CustomerAuthRepository({
     required ApiClient apiClient,
     required SecureStorageService storage,
+    required CustomerDeviceTokenService deviceTokenService,
   }) : _apiClient = apiClient,
-       _storage = storage;
+       _storage = storage,
+       _deviceTokenService = deviceTokenService;
 
   final ApiClient _apiClient;
   final SecureStorageService _storage;
+  final CustomerDeviceTokenService _deviceTokenService;
 
   Future<CustomerUser> login({
     required String login,
@@ -72,24 +76,15 @@ class CustomerAuthRepository {
     return _readValidatedCustomer(response);
   }
 
-  Future<CustomerUser> updateAvatar({
-    required File image,
-  }) async {
+  Future<CustomerUser> updateAvatar({required File image}) async {
     if (!await image.exists()) {
-      throw const ApiException(
-        message: 'الصورة المختارة غير موجودة.',
-      );
+      throw const ApiException(message: 'الصورة المختارة غير موجودة.');
     }
 
-    final fileName = image.path
-        .split(Platform.pathSeparator)
-        .last;
+    final fileName = image.path.split(Platform.pathSeparator).last;
 
     final formData = FormData.fromMap({
-      'avatar': await MultipartFile.fromFile(
-        image.path,
-        filename: fileName,
-      ),
+      'avatar': await MultipartFile.fromFile(image.path, filename: fileName),
     });
 
     final response = await _apiClient.post(
@@ -101,9 +96,7 @@ class CustomerAuthRepository {
   }
 
   Future<CustomerUser> deleteAvatar() async {
-    final response = await _apiClient.delete(
-      '/customer/profile/avatar',
-    );
+    final response = await _apiClient.delete('/customer/profile/avatar');
 
     return _readValidatedCustomer(response);
   }
@@ -116,9 +109,7 @@ class CustomerAuthRepository {
     }
 
     try {
-      final response = await _apiClient.get(
-        '/customer/auth/me',
-      );
+      final response = await _apiClient.get('/customer/auth/me');
 
       final customer = _readUser(response);
 
@@ -127,12 +118,11 @@ class CustomerAuthRepository {
         return null;
       }
 
+      await _deviceTokenService.start();
+
       return customer;
     } on ApiException catch (error) {
-      if (
-          error.statusCode == 401 ||
-          error.statusCode == 403
-      ) {
+      if (error.statusCode == 401 || error.statusCode == 403) {
         await _storage.deleteCustomerToken();
         return null;
       }
@@ -142,10 +132,10 @@ class CustomerAuthRepository {
   }
 
   Future<void> logout() async {
+    await _deviceTokenService.deactivate();
+
     try {
-      await _apiClient.post(
-        '/customer/auth/logout',
-      );
+      await _apiClient.post('/customer/auth/logout');
     } finally {
       await _storage.deleteCustomerToken();
     }
@@ -157,30 +147,25 @@ class CustomerAuthRepository {
     final data = response['data'];
 
     if (data is! Map) {
-      throw const ApiException(
-        message: 'استجابة تسجيل الدخول غير صالحة.',
-      );
+      throw const ApiException(message: 'استجابة تسجيل الدخول غير صالحة.');
     }
 
     final normalizedData = Map<String, dynamic>.from(data);
     final token = normalizedData['token'];
 
     if (token is! String || token.trim().isEmpty) {
-      throw const ApiException(
-        message: 'لم يتم استلام رمز تسجيل الدخول.',
-      );
+      throw const ApiException(message: 'لم يتم استلام رمز تسجيل الدخول.');
     }
 
     final customer = _readValidatedCustomer(response);
 
     await _storage.saveCustomerToken(token.trim());
+    await _deviceTokenService.start();
 
     return customer;
   }
 
-  CustomerUser _readValidatedCustomer(
-    Map<String, dynamic> response,
-  ) {
+  CustomerUser _readValidatedCustomer(Map<String, dynamic> response) {
     final customer = _readUser(response);
 
     if (customer.role != 'customer') {
@@ -193,28 +178,20 @@ class CustomerAuthRepository {
     return customer;
   }
 
-  CustomerUser _readUser(
-    Map<String, dynamic> response,
-  ) {
+  CustomerUser _readUser(Map<String, dynamic> response) {
     final data = response['data'];
 
     if (data is! Map) {
-      throw const ApiException(
-        message: 'استجابة الخادم غير صالحة.',
-      );
+      throw const ApiException(message: 'استجابة الخادم غير صالحة.');
     }
 
     final normalizedData = Map<String, dynamic>.from(data);
     final userData = normalizedData['user'];
 
     if (userData is! Map) {
-      throw const ApiException(
-        message: 'بيانات المستخدم غير موجودة.',
-      );
+      throw const ApiException(message: 'بيانات المستخدم غير موجودة.');
     }
 
-    return CustomerUser.fromJson(
-      Map<String, dynamic>.from(userData),
-    );
+    return CustomerUser.fromJson(Map<String, dynamic>.from(userData));
   }
 }
