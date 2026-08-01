@@ -212,6 +212,10 @@ final class AppointmentNotificationService
             deduplicationKey: $deduplicationKey,
         );
 
+        if (! $notification->wasRecentlyCreated) {
+            return;
+        }
+
         $tokens = DeviceToken::query()
             ->where('user_id', $user->id)
             ->where('app', $app)

@@ -3,6 +3,7 @@
 namespace App\Services\Appointments;
 
 use App\Models\Appointment;
+use App\Services\Notifications\AppointmentNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -10,6 +11,7 @@ class ManageAppointmentService
 {
     public function __construct(
         private readonly AppointmentCouponService $appointmentCouponService,
+        private readonly AppointmentNotificationService $appointmentNotificationService,
     ) {}
 
     /**
@@ -163,7 +165,7 @@ class ManageAppointmentService
         string $targetStatus,
         callable $attributes
     ): Appointment {
-        return DB::transaction(function () use (
+        $updated = DB::transaction(function () use (
             $appointment,
             $targetStatus,
             $attributes
@@ -186,6 +188,11 @@ class ManageAppointmentService
 
             return $this->load($locked);
         }, 3);
+
+        $this->appointmentNotificationService
+            ->appointmentStatusChanged($updated);
+
+        return $updated;
     }
 
     private function lock(Appointment $appointment): Appointment
