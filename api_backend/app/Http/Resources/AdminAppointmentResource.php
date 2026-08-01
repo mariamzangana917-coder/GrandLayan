@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
@@ -31,24 +33,19 @@ class AdminAppointmentResource extends JsonResource
                 'name' => $this->department->name,
             ],
 
-            'coupon' => $this->relationLoaded('coupon')
-                ? ($this->coupon !== null
-                    ? [
-                        'id' => $this->coupon->id,
-                        'name' => $this->coupon->name,
-                        'code' => $this->coupon->code,
-                        'discount_type' => $this->coupon->discount_type,
-                        'discount_value' => $this->coupon->discount_value,
-                    ]
-                    : null)
-                : null,
+            'coupon' => $this->coupon_id === null
+                ? null
+                : [
+                    'id' => (int) $this->coupon_id,
+                    'code' => $this->coupon?->code,
+                    'name' => $this->coupon?->name,
+                ],
 
             'subtotal_amount' => $this->subtotal_amount,
             'discount_amount' => $this->discount_amount,
             'final_amount' => $this->final_amount,
 
             'requested_start_at' => $this->requested_start_at?->toISOString(),
-
             'confirmed_start_at' => $this->confirmed_start_at?->toISOString(),
 
             'customer_notes' => $this->customer_notes,
@@ -58,9 +55,7 @@ class AdminAppointmentResource extends JsonResource
             'cancellation_reason' => $this->cancellation_reason,
 
             'cancelled_at' => $this->cancelled_at?->toISOString(),
-
             'completed_at' => $this->completed_at?->toISOString(),
-
             'no_show_at' => $this->no_show_at?->toISOString(),
 
             'items' => AppointmentItemResource::collection(
@@ -68,7 +63,6 @@ class AdminAppointmentResource extends JsonResource
             ),
 
             'created_at' => $this->created_at?->toISOString(),
-
             'updated_at' => $this->updated_at?->toISOString(),
         ];
     }

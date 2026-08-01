@@ -403,12 +403,12 @@ class OfferApiTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_customer_sees_only_active_current_offers(): void
+    public function test_customer_sees_all_active_offers_regardless_of_schedule(): void
     {
         $this->actingAsCustomer();
 
-        $visible = $this->createOffer([
-            'title' => 'العرض الظاهر',
+        $current = $this->createOffer([
+            'title' => 'عرض حالي',
             'is_active' => true,
             'starts_at' => now()->subDay(),
             'ends_at' => now()->addDay(),
@@ -421,26 +421,43 @@ class OfferApiTest extends TestCase
             'ends_at' => now()->addDay(),
         ]);
 
-        $this->createOffer([
-            'title' => 'عرض قادم',
+        $upcoming = $this->createOffer([
+            'title' => 'عرض يبدأ قريبًا',
             'is_active' => true,
             'starts_at' => now()->addHour(),
             'ends_at' => now()->addDays(2),
         ]);
 
-        $this->createOffer([
+        $expired = $this->createOffer([
             'title' => 'عرض منتهي',
             'is_active' => true,
             'starts_at' => now()->subDays(2),
             'ends_at' => now()->subHour(),
         ]);
 
-        $this->getJson('/api/customer/offers')
+        $response = $this->getJson('/api/customer/offers');
+
+        $response
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $visible)
-            ->assertJsonPath('data.0.title', 'العرض الظاهر')
-            ->assertJsonPath('data.0.availability', 'current');
+            ->assertJsonCount(3, 'data')
+            ->assertJsonFragment([
+                'id' => $current,
+                'title' => 'عرض حالي',
+                'availability' => 'current',
+            ])
+            ->assertJsonFragment([
+                'id' => $upcoming,
+                'title' => 'عرض يبدأ قريبًا',
+                'availability' => 'upcoming',
+            ])
+            ->assertJsonFragment([
+                'id' => $expired,
+                'title' => 'عرض منتهي',
+                'availability' => 'expired',
+            ])
+            ->assertJsonMissing([
+                'title' => 'عرض غير فعال',
+            ]);
     }
 
     public function test_customer_can_filter_current_offers_by_department(): void
@@ -483,21 +500,38 @@ class OfferApiTest extends TestCase
             ->assertJsonMissingPath('data.created_by_user_id');
     }
 
-    public function test_customer_cannot_view_inactive_upcoming_expired_or_deleted_offer(): void
+    public function test_customer_can_view_active_upcoming_and_expired_offers(): void
+    {
+        $this->actingAsCustomer();
+
+        $upcoming = $this->createOffer([
+            'starts_at' => now()->addHour(),
+            'ends_at' => now()->addDays(2),
+            'is_active' => true,
+        ]);
+
+        $expired = $this->createOffer([
+            'starts_at' => now()->subDays(2),
+            'ends_at' => now()->subHour(),
+            'is_active' => true,
+        ]);
+
+        $this->getJson("/api/customer/offers/{$upcoming}")
+            ->assertOk()
+            ->assertJsonPath('data.availability', 'upcoming');
+
+        $this->getJson("/api/customer/offers/{$expired}")
+            ->assertOk()
+            ->assertJsonPath('data.availability', 'expired');
+    }
+
+    public function test_customer_cannot_view_inactive_or_deleted_offer(): void
     {
         $this->actingAsCustomer();
 
         $offerIds = [
             $this->createOffer([
                 'is_active' => false,
-            ]),
-            $this->createOffer([
-                'starts_at' => now()->addHour(),
-                'ends_at' => now()->addDays(2),
-            ]),
-            $this->createOffer([
-                'starts_at' => now()->subDays(2),
-                'ends_at' => now()->subHour(),
             ]),
             $this->createOffer([
                 'deleted_at' => now(),
