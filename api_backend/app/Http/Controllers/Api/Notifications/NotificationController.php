@@ -48,7 +48,7 @@ class NotificationController extends Controller
     public function markRead(
         Request $request,
         AppNotification $notification,
-    ): AppNotificationResource {
+    ): JsonResponse {
         abort_unless(
             (int) $notification->user_id === (int) $request->user()->id,
             404,
@@ -60,7 +60,11 @@ class NotificationController extends Controller
             ])->save();
         }
 
-        return new AppNotificationResource($notification->refresh());
+        return response()->json([
+            'data' => (new AppNotificationResource(
+                $notification->refresh()
+            ))->resolve($request),
+        ]);
     }
 
     public function markAllRead(Request $request): JsonResponse
