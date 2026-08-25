@@ -26,8 +26,7 @@ class CatalogCategory {
       department: departmentData is Map
           ? Department.fromJson(
               departmentData.map(
-                (dynamic key, dynamic value) =>
-                    MapEntry(key.toString(), value),
+                (dynamic key, dynamic value) => MapEntry(key.toString(), value),
               ),
             )
           : null,
@@ -58,10 +57,7 @@ class CatalogCategory {
     return text.isEmpty ? null : text;
   }
 
-  static bool _toBool(
-    dynamic value, {
-    required bool defaultValue,
-  }) {
+  static bool _toBool(dynamic value, {required bool defaultValue}) {
     if (value is bool) {
       return value;
     }

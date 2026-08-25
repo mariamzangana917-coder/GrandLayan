@@ -3,9 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/network/api_client.dart';
 
 class CatalogApiService {
-  const CatalogApiService({
-    this.apiClient = const ApiClient(),
-  });
+  const CatalogApiService({this.apiClient = const ApiClient()});
 
   final ApiClient apiClient;
 
@@ -35,8 +33,6 @@ class CatalogApiService {
   }
 
   Future<Response<dynamic>> getCatalogItem(int catalogItemId) {
-    return apiClient.get(
-      '/admin/catalog-items/$catalogItemId',
-    );
+    return apiClient.get('/admin/catalog-items/$catalogItemId');
   }
 }

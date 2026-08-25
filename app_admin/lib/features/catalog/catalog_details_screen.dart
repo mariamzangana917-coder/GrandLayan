@@ -16,12 +16,10 @@ class CatalogDetailsScreen extends StatefulWidget {
   final bool isDarkMode;
 
   @override
-  State<CatalogDetailsScreen> createState() =>
-      _CatalogDetailsScreenState();
+  State<CatalogDetailsScreen> createState() => _CatalogDetailsScreenState();
 }
 
-class _CatalogDetailsScreenState
-    extends State<CatalogDetailsScreen> {
+class _CatalogDetailsScreenState extends State<CatalogDetailsScreen> {
   final CatalogService _service = const CatalogService();
 
   CatalogItem? _item;
@@ -65,18 +63,14 @@ class _CatalogDetailsScreenState
     final background = dark
         ? AppColors.darkBackground
         : AppColors.lightBackground;
-    final surface = dark
-        ? AppColors.darkSurface
-        : AppColors.lightSurface;
+    final surface = dark ? AppColors.darkSurface : AppColors.lightSurface;
     final primary = dark
         ? AppColors.darkPrimaryText
         : AppColors.lightPrimaryText;
     final secondary = dark
         ? AppColors.darkSecondaryText
         : AppColors.lightSecondaryText;
-    final border = dark
-        ? AppColors.darkBorder
-        : AppColors.lightBorder;
+    final border = dark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Scaffold(
       backgroundColor: background,
@@ -87,40 +81,30 @@ class _CatalogDetailsScreenState
         scrolledUnderElevation: 0,
         title: const Text(
           'تفاصيل الخدمة',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
         ),
       ),
       body: Directionality(
         textDirection: TextDirection.rtl,
         child: _loading
             ? const Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.gold,
-                ),
+                child: CircularProgressIndicator(color: AppColors.gold),
               )
             : _error != null
-                ? _errorState(primary)
-                : _content(
-                    item: _item!,
-                    surface: surface,
-                    primary: primary,
-                    secondary: secondary,
-                    border: border,
-                  ),
+            ? _errorState(primary)
+            : _content(
+                item: _item!,
+                surface: surface,
+                primary: primary,
+                secondary: secondary,
+                border: border,
+              ),
       ),
       bottomNavigationBar: _item == null
           ? null
           : SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  16,
-                  8,
-                  16,
-                  12,
-                ),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: FilledButton.icon(
                   onPressed: _openEdit,
                   icon: const Icon(Icons.edit_outlined),
@@ -130,8 +114,7 @@ class _CatalogDetailsScreenState
                     backgroundColor: AppColors.gold,
                     foregroundColor: AppColors.black,
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                 ),
@@ -151,12 +134,7 @@ class _CatalogDetailsScreenState
       color: AppColors.gold,
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          10,
-          16,
-          24,
-        ),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
         children: [
           if (item.images.isNotEmpty)
             SizedBox(
@@ -169,8 +147,7 @@ class _CatalogDetailsScreenState
                     child: Image.network(
                       item.images[index].url,
                       fit: BoxFit.cover,
-                      errorBuilder:
-                          (context, error, stackTrace) {
+                      errorBuilder: (context, error, stackTrace) {
                         return _imageFallback(surface);
                       },
                     ),
@@ -199,10 +176,7 @@ class _CatalogDetailsScreenState
           const SizedBox(height: 6),
           Text(
             '${item.departmentName} • ${item.categoryName}',
-            style: TextStyle(
-              color: secondary,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: secondary, fontSize: 13),
           ),
           const SizedBox(height: 18),
           _infoCard(
@@ -215,12 +189,7 @@ class _CatalogDetailsScreenState
                 primary,
                 secondary,
               ),
-              _row(
-                'السعر',
-                _price(item),
-                primary,
-                secondary,
-              ),
+              _row('السعر', _price(item), primary, secondary),
               _row(
                 'المدة',
                 item.durationMinutes == null
@@ -263,8 +232,7 @@ class _CatalogDetailsScreenState
                 border: Border.all(color: border),
               ),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
                     'محتويات البكج',
@@ -283,8 +251,7 @@ class _CatalogDetailsScreenState
                   else
                     ...item.packageItems.map(
                       (packageItem) => Padding(
-                        padding:
-                            const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: Row(
                           children: [
                             const Icon(
@@ -296,16 +263,12 @@ class _CatalogDetailsScreenState
                             Expanded(
                               child: Text(
                                 packageItem.serviceName,
-                                style: TextStyle(
-                                  color: primary,
-                                ),
+                                style: TextStyle(color: primary),
                               ),
                             ),
                             Text(
                               '×${packageItem.quantity}',
-                              style: TextStyle(
-                                color: secondary,
-                              ),
+                              style: TextStyle(color: secondary),
                             ),
                           ],
                         ),
@@ -328,11 +291,7 @@ class _CatalogDetailsScreenState
         color: surface,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Icon(
-        Icons.image_outlined,
-        color: AppColors.gold,
-        size: 52,
-      ),
+      child: const Icon(Icons.image_outlined, color: AppColors.gold, size: 52),
     );
   }
 
@@ -372,45 +331,25 @@ class _CatalogDetailsScreenState
         children: [
           Text(
             title,
-            style: TextStyle(
-              color: primary,
-              fontWeight: FontWeight.w800,
-            ),
+            style: TextStyle(color: primary, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 7),
-          Text(
-            body,
-            style: TextStyle(
-              color: secondary,
-              height: 1.55,
-            ),
-          ),
+          Text(body, style: TextStyle(color: secondary, height: 1.55)),
         ],
       ),
     );
   }
 
-  Widget _row(
-    String label,
-    String value,
-    Color primary,
-    Color secondary,
-  ) {
+  Widget _row(String label, String value, Color primary, Color secondary) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
-          Text(
-            label,
-            style: TextStyle(color: secondary),
-          ),
+          Text(label, style: TextStyle(color: secondary)),
           const Spacer(),
           Text(
             value,
-            style: TextStyle(
-              color: primary,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(color: primary, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -419,23 +358,17 @@ class _CatalogDetailsScreenState
 
   Widget _statusBadge(bool active) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: (active
-                ? AppColors.success
-                : AppColors.error)
-            .withValues(alpha: 0.13),
+        color: (active ? AppColors.success : AppColors.error).withValues(
+          alpha: 0.13,
+        ),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         active ? 'نشط' : 'غير نشط',
         style: TextStyle(
-          color: active
-              ? AppColors.success
-              : AppColors.error,
+          color: active ? AppColors.success : AppColors.error,
           fontSize: 11,
           fontWeight: FontWeight.w800,
         ),
@@ -448,10 +381,7 @@ class _CatalogDetailsScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            _error!,
-            style: TextStyle(color: primary),
-          ),
+          Text(_error!, style: TextStyle(color: primary)),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _load,
@@ -464,8 +394,7 @@ class _CatalogDetailsScreenState
   }
 
   String _price(CatalogItem item) {
-    if (item.priceType == 'inspection' ||
-        item.price == null) {
+    if (item.priceType == 'inspection' || item.price == null) {
       return 'بعد المعاينة';
     }
 
@@ -479,10 +408,8 @@ class _CatalogDetailsScreenState
   Future<void> _openEdit() async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
-        builder: (context) => CatalogEditScreen(
-          item: _item!,
-          isDarkMode: widget.isDarkMode,
-        ),
+        builder: (context) =>
+            CatalogEditScreen(item: _item!, isDarkMode: widget.isDarkMode),
       ),
     );
 

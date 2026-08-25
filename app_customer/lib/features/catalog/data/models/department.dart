@@ -1,9 +1,5 @@
 class Department {
-  const Department({
-    required this.id,
-    required this.name,
-    required this.code,
-  });
+  const Department({required this.id, required this.name, required this.code});
 
   final int id;
   final String name;
@@ -18,11 +14,7 @@ class Department {
   }
 
   Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'id': id,
-      'name': name,
-      'code': code,
-    };
+    return <String, dynamic>{'id': id, 'name': name, 'code': code};
   }
 
   static int _toInt(dynamic value) {

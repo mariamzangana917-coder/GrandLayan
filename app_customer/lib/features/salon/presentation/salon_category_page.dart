@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'salon_service_details_page.dart';
+
 import '../../../shared/widgets/gl_empty_state.dart';
 import '../../../shared/widgets/gl_error_state.dart';
 import '../../../shared/widgets/gl_loading.dart';
 import '../../catalog/data/models/catalog_item.dart';
 import '../../catalog/providers/catalog_provider.dart';
+import '../../favorites/providers/favorite_provider.dart';
+import 'salon_service_details_page.dart';
 import 'widgets/salon_service_card.dart';
 
 class SalonCategoryPage extends ConsumerStatefulWidget {
@@ -34,6 +36,46 @@ class _SalonCategoryPageState extends ConsumerState<SalonCategoryPage> {
 
   Future<void> _refresh() {
     return ref.refresh(catalogItemsProvider(_filter).future);
+  }
+
+  Future<void> _changeFavorite({
+    required int catalogItemId,
+    required bool isFavorite,
+  }) async {
+    final repository = ref.read(favoriteRepositoryProvider);
+
+    if (isFavorite) {
+      await repository.addFavorite(catalogItemId);
+    } else {
+      await repository.removeFavorite(catalogItemId);
+    }
+
+    ref.invalidate(favoritesProvider);
+    ref.invalidate(catalogItemsProvider(_filter));
+  }
+
+  Future<void> _openServiceDetails(CatalogItem item) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) {
+          return SalonServiceDetailsPage(
+            item: item,
+            onFavoriteChanged: (bool isFavorite) {
+              return _changeFavorite(
+                catalogItemId: item.id,
+                isFavorite: isFavorite,
+              );
+            },
+          );
+        },
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    ref.invalidate(catalogItemsProvider(_filter));
   }
 
   @override
@@ -122,20 +164,10 @@ class _SalonCategoryPageState extends ConsumerState<SalonCategoryPage> {
               itemBuilder: (BuildContext context, int index) {
                 final CatalogItem item = visibleItems[index];
 
-                debugPrint(
-                  'SERVICE IMAGE: ${item.name} => ${item.primaryImageUrl}',
-                );
-
                 return SalonServiceCard(
                   item: item,
                   onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (BuildContext context) {
-                          return SalonServiceDetailsPage(item: item);
-                        },
-                      ),
-                    );
+                    _openServiceDetails(item);
                   },
                 );
               },

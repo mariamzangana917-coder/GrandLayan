@@ -5,9 +5,7 @@ import 'api_config.dart';
 import 'api_exception.dart';
 
 class ApiClient {
-  ApiClient({
-    required SecureStorageService storage,
-  }) : _storage = storage {
+  ApiClient({required SecureStorageService storage}) : _storage = storage {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConfig.baseUrl,
@@ -24,34 +22,22 @@ class ApiClient {
 
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (
-          RequestOptions options,
-          RequestInterceptorHandler handler,
-        ) async {
-          final token =
-              await _storage.readCustomerToken();
+        onRequest:
+            (RequestOptions options, RequestInterceptorHandler handler) async {
+              final token = await _storage.readCustomerToken();
 
-          if (token != null &&
-              token.trim().isNotEmpty) {
-            options.headers['Authorization'] =
-                'Bearer ${token.trim()}';
-          } else {
-            options.headers.remove(
-              'Authorization',
-            );
-          }
+              if (token != null && token.trim().isNotEmpty) {
+                options.headers['Authorization'] = 'Bearer ${token.trim()}';
+              } else {
+                options.headers.remove('Authorization');
+              }
 
-          handler.next(options);
-        },
-        onError: (
-          DioException error,
-          ErrorInterceptorHandler handler,
-        ) async {
-          final statusCode =
-              error.response?.statusCode;
+              handler.next(options);
+            },
+        onError: (DioException error, ErrorInterceptorHandler handler) async {
+          final statusCode = error.response?.statusCode;
 
-          if (statusCode == 401 ||
-              statusCode == 403) {
+          if (statusCode == 401 || statusCode == 403) {
             await _storage.deleteCustomerToken();
           }
 
@@ -146,8 +132,7 @@ class ApiClient {
         queryParameters: queryParameters,
       );
 
-      if (response.data == null ||
-          response.data == '') {
+      if (response.data == null || response.data == '') {
         return <String, dynamic>{};
       }
 
@@ -157,9 +142,7 @@ class ApiClient {
     }
   }
 
-  Map<String, dynamic> _normalizeResponse(
-    dynamic responseData,
-  ) {
+  Map<String, dynamic> _normalizeResponse(dynamic responseData) {
     if (responseData == null) {
       return <String, dynamic>{};
     }
@@ -169,82 +152,51 @@ class ApiClient {
     }
 
     if (responseData is Map) {
-      return Map<String, dynamic>.from(
-        responseData,
-      );
+      return Map<String, dynamic>.from(responseData);
     }
 
-    throw const ApiException(
-      message: 'استجابة الخادم غير صالحة.',
-    );
+    throw const ApiException(message: 'استجابة الخادم غير صالحة.');
   }
 
-  ApiException _mapDioException(
-    DioException error,
-  ) {
-    final statusCode =
-        error.response?.statusCode;
+  ApiException _mapDioException(DioException error) {
+    final statusCode = error.response?.statusCode;
 
-    final responseData =
-        error.response?.data;
+    final responseData = error.response?.data;
 
     String? serverMessage;
 
     if (responseData is Map) {
-      final normalizedData =
-          Map<String, dynamic>.from(
-        responseData,
-      );
+      final normalizedData = Map<String, dynamic>.from(responseData);
 
-      final message =
-          normalizedData['message'];
+      final message = normalizedData['message'];
 
-      if (message is String &&
-          message.trim().isNotEmpty) {
+      if (message is String && message.trim().isNotEmpty) {
         serverMessage = message.trim();
       }
 
-      final errors =
-          normalizedData['errors'];
+      final errors = normalizedData['errors'];
 
-      if (serverMessage == null &&
-          errors is Map &&
-          errors.isNotEmpty) {
-        final firstError =
-            errors.values.first;
+      if (serverMessage == null && errors is Map && errors.isNotEmpty) {
+        final firstError = errors.values.first;
 
-        if (firstError is List &&
-            firstError.isNotEmpty) {
-          serverMessage =
-              firstError.first.toString();
+        if (firstError is List && firstError.isNotEmpty) {
+          serverMessage = firstError.first.toString();
         } else if (firstError != null) {
-          serverMessage =
-              firstError.toString();
+          serverMessage = firstError.toString();
         }
       }
     }
 
     final message = switch (error.type) {
-      DioExceptionType.connectionTimeout =>
-        'انتهت مهلة الاتصال بالخادم.',
-      DioExceptionType.sendTimeout =>
-        'انتهت مهلة إرسال البيانات.',
-      DioExceptionType.receiveTimeout =>
-        'انتهت مهلة استلام البيانات.',
-      DioExceptionType.connectionError =>
-        'تعذر الاتصال بالخادم.',
-      DioExceptionType.badCertificate =>
-        'تعذر التحقق من أمان الاتصال.',
-      DioExceptionType.cancel =>
-        'تم إلغاء الطلب.',
-      _ =>
-        serverMessage ??
-            'حدث خطأ أثناء الاتصال بالخادم.',
+      DioExceptionType.connectionTimeout => 'انتهت مهلة الاتصال بالخادم.',
+      DioExceptionType.sendTimeout => 'انتهت مهلة إرسال البيانات.',
+      DioExceptionType.receiveTimeout => 'انتهت مهلة استلام البيانات.',
+      DioExceptionType.connectionError => 'تعذر الاتصال بالخادم.',
+      DioExceptionType.badCertificate => 'تعذر التحقق من أمان الاتصال.',
+      DioExceptionType.cancel => 'تم إلغاء الطلب.',
+      _ => serverMessage ?? 'حدث خطأ أثناء الاتصال بالخادم.',
     };
 
-    return ApiException(
-      message: message,
-      statusCode: statusCode,
-    );
+    return ApiException(message: message, statusCode: statusCode);
   }
 }

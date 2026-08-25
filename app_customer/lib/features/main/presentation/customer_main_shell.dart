@@ -1,55 +1,136 @@
 import 'package:flutter/material.dart';
+
 import '../../account/presentation/pages/account_page.dart';
+import '../../chat/presentation/grand_layan_chat_page.dart';
+import '../../favorites/presentation/pages/favorites_page.dart';
 import '../../home/presentation/customer_home_page.dart';
 import '../../offers/presentation/offers_page.dart';
-import '../../chat/presentation/grand_layan_chat_page.dart';
 
 class CustomerMainShell extends StatefulWidget {
-  const CustomerMainShell({super.key});
+  const CustomerMainShell({
+    super.key,
+  });
 
   @override
-  State<CustomerMainShell> createState() => _CustomerMainShellState();
+  State<CustomerMainShell> createState() =>
+      _CustomerMainShellState();
 }
 
-class _CustomerMainShellState extends State<CustomerMainShell> {
-  int _selectedIndex = 0;
+class _CustomerMainShellState
+    extends State<CustomerMainShell> {
+  static const int _homeIndex = 0;
+  static const int _favoritesIndex = 2;
+  static const int _chatIndex = 3;
 
-  Future<void> _onNavigationTap(int index) async {
-    if (index == 3) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const GrandLayanChatPage(showBackButton: true),
-        ),
-      );
+  int _selectedIndex = _homeIndex;
+
+  /// آخر تبويب حقيقي قبل الدخول إلى المفضلة.
+  int _lastNonFavoritesIndex = _homeIndex;
+
+  /// الانتقال من أي مكان إلى الرئيسية.
+
+  /// الرجوع من العروض إلى الصفحة الرئيسية.
+  void _goBackFromOffers() {
+    if (!mounted) {
       return;
     }
 
-    if (!mounted) return;
+    setState(() {
+      _selectedIndex = _homeIndex;
+    });
+  }
+
+  /// الرجوع من المفضلة إلى آخر تبويب كان مفتوحًا.
+  void _goBackFromFavorites() {
+    if (!mounted) {
+      return;
+    }
 
     setState(() {
+      _selectedIndex =
+          _lastNonFavoritesIndex == _favoritesIndex
+              ? _homeIndex
+              : _lastNonFavoritesIndex;
+    });
+  }
+
+  Future<void> _onNavigationTap(
+    int index,
+  ) async {
+    /// المحادثة تفتح كصفحة مستقلة.
+    if (index == _chatIndex) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              const GrandLayanChatPage(
+            showBackButton: true,
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    if (index == _selectedIndex) {
+      return;
+    }
+
+    setState(() {
+      /// عند الدخول للمفضلة نحفظ التبويب السابق.
+      if (index == _favoritesIndex &&
+          _selectedIndex != _favoritesIndex) {
+        _lastNonFavoritesIndex = _selectedIndex;
+      }
+
+      /// أي تبويب غير المفضلة يصبح هو آخر تبويب صالح للرجوع.
+      if (index != _favoritesIndex) {
+        _lastNonFavoritesIndex = index;
+      }
+
       _selectedIndex = index;
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget build(
+    BuildContext context,
+  ) {
+    final bool isDark =
+        Theme.of(context).brightness ==
+            Brightness.dark;
 
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: const [
-          CustomerHomePage(showBottomNavigation: false),
-          OffersPage(),
-          _TemporaryMainPage(
-            title: 'المفضلة',
-            description: 'ستظهر هنا الخدمات والبكجات التي حفظتِها في المفضلة.',
-            icon: Icons.favorite_border_rounded,
+        children: <Widget>[
+          /// 0 - الرئيسية
+          const CustomerHomePage(
+            showBottomNavigation: false,
           ),
-          SizedBox.shrink(),
-          AccountPage(),
+
+          /// 1 - العروض
+          OffersPage(
+            onBack: _goBackFromOffers,
+          ),
+
+          /// 2 - المفضلة
+          FavoritesPage(
+            onBack: _goBackFromFavorites,
+          ),
+
+          /// 3 - المحادثة
+          const SizedBox.shrink(),
+
+          /// 4 - الحساب
+          const AccountPage(),
         ],
       ),
+
+      /// الشريط السفلي يبقى ظاهرًا داخل الـ Shell.
       bottomNavigationBar: _MainBottomNavigation(
         selectedIndex: _selectedIndex,
         isDark: isDark,
@@ -59,116 +140,8 @@ class _CustomerMainShellState extends State<CustomerMainShell> {
   }
 }
 
-class _TemporaryMainPage extends StatelessWidget {
-  const _TemporaryMainPage({
-    required this.title,
-    required this.description,
-    required this.icon,
-  });
-
-  final String title;
-  final String description;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark
-        ? const Color(0xFF050505)
-        : const Color(0xFFFDFCFB);
-    final surfaceColor = isDark
-        ? const Color(0xFF121110)
-        : const Color(0xFFF5F1ED);
-    final primaryTextColor = isDark
-        ? const Color(0xFFF5F3F1)
-        : const Color(0xFF26221F);
-    final secondaryTextColor = isDark
-        ? const Color(0xFF9A9691)
-        : const Color(0xFF77716C);
-    final accentColor = isDark
-        ? const Color(0xFFC9B19B)
-        : const Color(0xFF8D705A);
-
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            SizedBox(
-              height: 58,
-              child: Center(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: primaryTextColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(28),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 30,
-                    ),
-                    decoration: BoxDecoration(
-                      color: surfaceColor,
-                      borderRadius: BorderRadius.circular(26),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 74,
-                          height: 74,
-                          decoration: BoxDecoration(
-                            color: accentColor.withValues(
-                              alpha: isDark ? 0.14 : 0.10,
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Icon(icon, color: accentColor, size: 34),
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          title,
-                          style: TextStyle(
-                            color: primaryTextColor,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          description,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: secondaryTextColor,
-                            fontSize: 13,
-                            height: 1.6,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MainBottomNavigation extends StatelessWidget {
+class _MainBottomNavigation
+    extends StatelessWidget {
   const _MainBottomNavigation({
     required this.selectedIndex,
     required this.isDark,
@@ -179,7 +152,8 @@ class _MainBottomNavigation extends StatelessWidget {
   final bool isDark;
   final ValueChanged<int> onTap;
 
-  static const List<_NavigationItem> _items = [
+  static const List<_NavigationItem> _items =
+      <_NavigationItem>[
     _NavigationItem(
       navigationIndex: 1,
       label: 'العروض',
@@ -214,20 +188,26 @@ class _MainBottomNavigation extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final backgroundColor = isDark
+  Widget build(
+    BuildContext context,
+  ) {
+    final Color backgroundColor = isDark
         ? const Color(0xFF11100F)
         : const Color(0xFFFFFDFC);
-    final dividerColor = isDark
+
+    final Color dividerColor = isDark
         ? const Color(0xFF24211F)
         : const Color(0xFFEAE5E0);
-    final selectedColor = isDark
+
+    final Color selectedColor = isDark
         ? const Color(0xFFC9B19B)
         : const Color(0xFF8D705A);
-    final inactiveColor = isDark
+
+    final Color inactiveColor = isDark
         ? const Color(0xFF77736F)
         : const Color(0xFF96908B);
-    final primaryBackgroundColor = isDark
+
+    final Color primaryBackgroundColor = isDark
         ? const Color(0xFF28231F)
         : const Color(0xFFF0E7DF);
 
@@ -239,63 +219,118 @@ class _MainBottomNavigation extends StatelessWidget {
           height: 74,
           decoration: BoxDecoration(
             color: backgroundColor,
-            border: Border(top: BorderSide(color: dividerColor, width: 1)),
+            border: Border(
+              top: BorderSide(
+                color: dividerColor,
+                width: 1,
+              ),
+            ),
           ),
           child: Row(
-            children: _items.map((item) {
-              final isSelected = selectedIndex == item.navigationIndex;
-              return Expanded(
-                child: InkWell(
-                  onTap: () => onTap(item.navigationIndex),
-                  child: SizedBox.expand(
-                    child: Transform.translate(
-                      offset: Offset(0, item.isPrimary ? -8 : 0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: item.isPrimary ? 50 : 36,
-                            height: item.isPrimary ? 50 : 36,
-                            decoration: item.isPrimary
-                                ? BoxDecoration(
-                                    color: primaryBackgroundColor,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: backgroundColor,
-                                      width: 4,
-                                    ),
-                                  )
-                                : null,
-                            child: Icon(
-                              isSelected ? item.selectedIcon : item.icon,
-                              color: item.isPrimary
-                                  ? selectedColor
-                                  : isSelected
-                                  ? selectedColor
-                                  : inactiveColor,
-                              size: item.isPrimary ? 25 : 23,
+            children: _items
+                .map(
+                  (_NavigationItem item) {
+                    final bool isSelected =
+                        selectedIndex ==
+                            item.navigationIndex;
+
+                    return Expanded(
+                      child: InkWell(
+                        onTap: () => onTap(
+                          item.navigationIndex,
+                        ),
+                        child: SizedBox.expand(
+                          child: Transform.translate(
+                            offset: Offset(
+                              0,
+                              item.isPrimary
+                                  ? -8
+                                  : 0,
+                            ),
+                            child: Column(
+                              mainAxisAlignment:
+                                  MainAxisAlignment
+                                      .center,
+                              children: <Widget>[
+                                Container(
+                                  width:
+                                      item.isPrimary
+                                          ? 50
+                                          : 36,
+                                  height:
+                                      item.isPrimary
+                                          ? 50
+                                          : 36,
+                                  decoration:
+                                      item.isPrimary
+                                          ? BoxDecoration(
+                                              color:
+                                                  primaryBackgroundColor,
+                                              shape:
+                                                  BoxShape.circle,
+                                              border:
+                                                  Border.all(
+                                                color:
+                                                    backgroundColor,
+                                                width:
+                                                    4,
+                                              ),
+                                            )
+                                          : null,
+                                  child: Icon(
+                                    isSelected
+                                        ? item
+                                            .selectedIcon
+                                        : item.icon,
+                                    color: item.isPrimary
+                                        ? selectedColor
+                                        : isSelected
+                                            ? selectedColor
+                                            : inactiveColor,
+                                    size:
+                                        item.isPrimary
+                                            ? 25
+                                            : 23,
+                                  ),
+                                ),
+                                SizedBox(
+                                  height:
+                                      item.isPrimary
+                                          ? 1
+                                          : 2,
+                                ),
+                                Text(
+                                  item.label,
+                                  maxLines: 1,
+                                  overflow:
+                                      TextOverflow
+                                          .ellipsis,
+                                  style:
+                                      TextStyle(
+                                    color:
+                                        isSelected
+                                            ? selectedColor
+                                            : inactiveColor,
+                                    fontSize: 10.5,
+                                    fontWeight:
+                                        isSelected
+                                            ? FontWeight
+                                                .w700
+                                            : FontWeight
+                                                .w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          SizedBox(height: item.isPrimary ? 1 : 2),
-                          Text(
-                            item.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: isSelected ? selectedColor : inactiveColor,
-                              fontSize: 10.5,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
+                )
+                .toList(
+                  growable: false,
                 ),
-              );
-            }).toList(),
           ),
         ),
       ),
@@ -318,3 +353,4 @@ class _NavigationItem {
   final IconData selectedIcon;
   final bool isPrimary;
 }
+

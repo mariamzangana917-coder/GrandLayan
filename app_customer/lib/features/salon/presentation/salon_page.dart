@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
+import '../../appointments/presentation/salon_booking_page.dart';
 import 'salon_category_page.dart';
 import '../../../shared/widgets/gl_empty_state.dart';
 import '../../../shared/widgets/gl_error_state.dart';
@@ -12,27 +12,20 @@ import '../../catalog/data/models/catalog_item.dart';
 import '../../catalog/providers/catalog_provider.dart';
 import 'widgets/fixed_booking_bar.dart';
 import 'widgets/latest_posts_section.dart';
-import 'widgets/offers_banner.dart';
 import 'widgets/salon_category_card.dart';
 import 'widgets/salon_header.dart';
+import '../../posts/providers/post_provider.dart';
+import '../../posts/data/models/post_model.dart';
+import '../../banners/presentation/customer_banner_carousel.dart';
+import '../../banners/providers/banner_provider.dart';
+
 
 class SalonPage extends ConsumerWidget {
   const SalonPage({super.key});
 
   static const CatalogFilter _salonFilter = CatalogFilter(department: 'salon');
 
-  static const List<SalonPostData> _posts = <SalonPostData>[
-    SalonPostData(
-      title: 'إطلالة جديدة',
-      subtitle: 'أحدث أعمال الصالون',
-      assetPath: 'assets/images/salon_post_1.jpg',
-    ),
-    SalonPostData(
-      title: 'بكجات مميزة',
-      subtitle: 'اختيارات خاصة لكِ',
-      assetPath: 'assets/images/salon_post_2.jpg',
-    ),
-  ];
+
 
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context)
@@ -56,6 +49,9 @@ class SalonPage extends ConsumerWidget {
     final AsyncValue<List<CatalogItem>> catalogState = ref.watch(
       catalogItemsProvider(_salonFilter),
     );
+final AsyncValue<List<PostModel>> postsState = ref.watch(
+  postsProvider('salon'),
+);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -74,8 +70,13 @@ class SalonPage extends ConsumerWidget {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () =>
-                    ref.refresh(catalogItemsProvider(_salonFilter).future),
+                  onRefresh: () async {
+  await Future.wait([
+    ref.refresh(catalogItemsProvider(_salonFilter).future),
+    ref.refresh(postsProvider('salon').future),
+    ref.refresh(bannersProvider('salon').future),
+  ]);
+},
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
@@ -84,20 +85,43 @@ class SalonPage extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      OffersBanner(
-                        onTap: () {
-                          _showComingSoon(context, 'العروض الحالية');
-                        },
-                      ),
+                    const CustomerBannerCarousel(placement: 'salon', height: 178),
                       const SizedBox(height: 22),
                       const GlSectionTitle(title: 'آخر المنشورات'),
-                      const SizedBox(height: 12),
-                      LatestPostsSection(
-                        posts: _posts,
-                        onPostTap: (SalonPostData post) {
-                          _showComingSoon(context, post.title);
-                        },
-                      ),
+const SizedBox(height: 12),
+
+postsState.when(
+  loading: () => const SizedBox(
+    height: 164,
+    child: Center(
+      child: CircularProgressIndicator(),
+    ),
+  ),
+  error: (Object error, StackTrace stackTrace) {
+    return GlErrorState(
+      message: 'تعذر تحميل آخر المنشورات حالياً.',
+      onRetry: () {
+        ref.invalidate(postsProvider('salon'));
+      },
+    );
+  },
+  data: (List<PostModel> posts) {
+    if (posts.isEmpty) {
+      return const GlEmptyState(
+        title: 'لا توجد منشورات حالياً',
+        message: 'ستظهر آخر منشورات الصالون هنا.',
+        icon: Icons.photo_library_outlined,
+      );
+    }
+
+    return LatestPostsSection(
+      posts: posts,
+      onPostTap: (PostModel post) {
+        // حالياً المنشور صورة فقط ولا يحتاج إجراء إضافياً.
+      },
+    );
+  },
+),
                       const SizedBox(height: 24),
                       const GlSectionTitle(title: 'الخدمات'),
                       const SizedBox(height: 12),
@@ -174,8 +198,14 @@ class SalonPage extends ConsumerWidget {
         ),
       ),
       bottomNavigationBar: FixedBookingBar(
-        onPressed: () {
-          _showComingSoon(context, 'الحجز');
+        onPressed: () async {
+          await Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (BuildContext context) {
+                return const SalonBookingPage();
+              },
+            ),
+          );
         },
       ),
     );

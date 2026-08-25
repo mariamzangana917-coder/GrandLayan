@@ -4,6 +4,7 @@ class CustomerDetails {
     required this.name,
     required this.phone,
     required this.email,
+    required this.avatar,
     required this.isActive,
     required this.createdAt,
     required this.appointmentsCount,
@@ -15,6 +16,7 @@ class CustomerDetails {
   final String name;
   final String? phone;
   final String? email;
+  final String? avatar;
   final bool isActive;
   final DateTime? createdAt;
   final int appointmentsCount;
@@ -38,6 +40,7 @@ class CustomerDetails {
     }
 
     return CustomerDetails(
+      avatar: _text(json['avatar']),
       id: _toInt(json['id']),
       name: json['name']?.toString() ?? 'عميلة',
       phone: _text(json['phone']),

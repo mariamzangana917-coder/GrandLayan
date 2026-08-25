@@ -1,8 +1,5 @@
 class CatalogPage {
-  const CatalogPage({
-    required this.items,
-    required this.total,
-  });
+  const CatalogPage({required this.items, required this.total});
 
   final List<CatalogItem> items;
   final int total;
@@ -92,8 +89,7 @@ class CatalogItem {
         ? Map<String, dynamic>.from(json['category'] as Map)
         : <String, dynamic>{};
 
-    final departmentRaw =
-        json['department'] ?? category['department'];
+    final departmentRaw = json['department'] ?? category['department'];
 
     final department = departmentRaw is Map
         ? Map<String, dynamic>.from(departmentRaw)
@@ -117,17 +113,13 @@ class CatalogItem {
 
     final packageItems = <PackageItem>[];
     final packageRaw =
-        json['package_items'] ??
-        json['items'] ??
-        json['contents'];
+        json['package_items'] ?? json['items'] ?? json['contents'];
 
     if (packageRaw is List) {
       for (final raw in packageRaw) {
         if (raw is Map) {
           packageItems.add(
-            PackageItem.fromJson(
-              Map<String, dynamic>.from(raw),
-            ),
+            PackageItem.fromJson(Map<String, dynamic>.from(raw)),
           );
         }
       }
@@ -145,20 +137,11 @@ class CatalogItem {
           ? null
           : _toInt(json['duration_minutes'], 0),
       isActive: _toBool(json['is_active']),
-      categoryId: _toInt(
-        json['category_id'] ?? category['id'],
-        0,
-      ),
-      categoryName:
-          category['name']?.toString() ?? 'غير مصنف',
-      departmentId: _toInt(
-        json['department_id'] ?? department['id'],
-        0,
-      ),
-      departmentCode:
-          department['code']?.toString() ?? '',
-      departmentName:
-          department['name']?.toString() ?? 'غير محدد',
+      categoryId: _toInt(json['category_id'] ?? category['id'], 0),
+      categoryName: category['name']?.toString() ?? 'غير مصنف',
+      departmentId: _toInt(json['department_id'] ?? department['id'], 0),
+      departmentCode: department['code']?.toString() ?? '',
+      departmentName: department['name']?.toString() ?? 'غير محدد',
       images: images,
       packageItems: packageItems,
     );
@@ -183,22 +166,13 @@ class CatalogImage {
     required String apiBaseUrl,
   }) {
     final raw =
-        json['url'] ??
-        json['image_url'] ??
-        json['path'] ??
-        json['image_path'];
+        json['url'] ?? json['image_url'] ?? json['path'] ?? json['image_path'];
 
     return CatalogImage(
       id: _toInt(json['id'], 0),
-      url: normalizeMediaUrl(
-        raw?.toString() ?? '',
-        apiBaseUrl,
-      ),
+      url: normalizeMediaUrl(raw?.toString() ?? '', apiBaseUrl),
       isMain: _toBool(json['is_main']),
-      sortOrder: _toInt(
-        json['sort_order'] ?? json['ordering'],
-        0,
-      ),
+      sortOrder: _toInt(json['sort_order'] ?? json['ordering'], 0),
     );
   }
 }
@@ -225,10 +199,7 @@ class PackageItem {
 
     return PackageItem(
       id: _toInt(json['id'], 0),
-      serviceId: _toInt(
-        json['service_id'] ?? service['id'],
-        0,
-      ),
+      serviceId: _toInt(json['service_id'] ?? service['id'], 0),
       serviceName:
           service['name']?.toString() ??
           json['service_name']?.toString() ??
@@ -240,10 +211,7 @@ class PackageItem {
 }
 
 class CatalogCategory {
-  const CatalogCategory({
-    required this.id,
-    required this.name,
-  });
+  const CatalogCategory({required this.id, required this.name});
 
   final int id;
   final String name;
@@ -256,19 +224,14 @@ class CatalogCategory {
   }
 }
 
-String normalizeMediaUrl(
-  String rawUrl,
-  String apiBaseUrl,
-) {
+String normalizeMediaUrl(String rawUrl, String apiBaseUrl) {
   if (rawUrl.isEmpty) return rawUrl;
 
   final raw = Uri.tryParse(rawUrl);
   final api = Uri.tryParse(apiBaseUrl);
 
   if (raw != null && raw.hasScheme) {
-    if (api != null &&
-        (raw.host == '127.0.0.1' ||
-            raw.host == 'localhost')) {
+    if (api != null && (raw.host == '127.0.0.1' || raw.host == 'localhost')) {
       return raw
           .replace(
             scheme: api.scheme,
@@ -283,14 +246,9 @@ String normalizeMediaUrl(
 
   if (api == null) return rawUrl;
 
-  final origin = api.replace(
-    path: '',
-    query: null,
-    fragment: null,
-  );
+  final origin = api.replace(path: '', query: null, fragment: null);
 
-  final path =
-      rawUrl.startsWith('/') ? rawUrl : '/$rawUrl';
+  final path = rawUrl.startsWith('/') ? rawUrl : '/$rawUrl';
 
   return origin.replace(path: path).toString();
 }

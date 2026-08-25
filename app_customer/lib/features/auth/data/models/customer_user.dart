@@ -30,9 +30,7 @@ class CustomerUser {
         email is! String ||
         phone is! String ||
         role is! String) {
-      throw const FormatException(
-        'بيانات المستخدم المستلمة غير صالحة.',
-      );
+      throw const FormatException('بيانات المستخدم المستلمة غير صالحة.');
     }
 
     return CustomerUser(

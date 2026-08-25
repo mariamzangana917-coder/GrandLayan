@@ -12,7 +12,9 @@ class ApiException implements Exception {
 
     return ApiException(
       message: data is Map
-          ? (data['message']?.toString() ?? error.message ?? 'حدث خطأ غير متوقع.')
+          ? (data['message']?.toString() ??
+                error.message ??
+                'حدث خطأ غير متوقع.')
           : (error.message ?? 'حدث خطأ غير متوقع.'),
       statusCode: error.response?.statusCode,
       validationErrors: data is Map && data['errors'] is Map

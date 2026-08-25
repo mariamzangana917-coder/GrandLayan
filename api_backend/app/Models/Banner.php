@@ -16,6 +16,7 @@ class Banner extends Model
         'title',
         'subtitle',
         'image_path',
+        'placement',
         'action_type',
         'action_target_id',
         'external_url',

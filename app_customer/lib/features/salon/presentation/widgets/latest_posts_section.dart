@@ -1,18 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
-
-class SalonPostData {
-  const SalonPostData({
-    required this.title,
-    required this.subtitle,
-    required this.assetPath,
-  });
-
-  final String title;
-  final String subtitle;
-  final String assetPath;
-}
+import '../../../posts/data/models/post_model.dart';
 
 class LatestPostsSection extends StatelessWidget {
   const LatestPostsSection({
@@ -21,31 +10,24 @@ class LatestPostsSection extends StatelessWidget {
     super.key,
   });
 
-  final List<SalonPostData> posts;
-  final ValueChanged<SalonPostData> onPostTap;
+  final List<PostModel> posts;
+  final ValueChanged<PostModel> onPostTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 164,
+      height: 205,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: posts.length,
-        separatorBuilder: (BuildContext context, int index) {
-          return const SizedBox(width: 12);
-        },
+        separatorBuilder: (_, index) => const SizedBox(width: 14),
         itemBuilder: (BuildContext context, int index) {
-          final SalonPostData post = posts[index];
+          final PostModel post = posts[index];
 
           return SizedBox(
-            width: 185,
-            child: _PostCard(
-              post: post,
-              onTap: () {
-                onPostTap(post);
-              },
-            ),
+            width: 220,
+            child: _PostCard(post: post, onTap: () => onPostTap(post)),
           );
         },
       ),
@@ -56,7 +38,7 @@ class LatestPostsSection extends StatelessWidget {
 class _PostCard extends StatelessWidget {
   const _PostCard({required this.post, required this.onTap});
 
-  final SalonPostData post;
+  final PostModel post;
   final VoidCallback onTap;
 
   @override
@@ -64,95 +46,131 @@ class _PostCard extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final bool isDark = theme.brightness == Brightness.dark;
 
-    final Color surfaceColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final Color surfaceColor = isDark ? const Color(0xFF191919) : Colors.white;
+
+    final String description = post.description?.trim() ?? '';
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.zero,
+        splashColor: AppColors.gold.withValues(alpha: 0.06),
+        highlightColor: AppColors.gold.withValues(alpha: 0.025),
         child: Ink(
           decoration: BoxDecoration(
             color: surfaceColor,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.zero,
             border: Border.all(
-              color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E7EB),
+              color: AppColors.gold.withValues(alpha: isDark ? 0.38 : 0.28),
+              width: 0.7,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: AppColors.gold.withValues(alpha: isDark ? 0.045 : 0.025),
+                blurRadius: 14,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.10 : 0.025),
+                blurRadius: 12,
+                spreadRadius: 0,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Image.asset(
-                      post.assetPath,
-                      fit: BoxFit.cover,
-                      filterQuality: FilterQuality.high,
-                      errorBuilder:
-                          (
-                            BuildContext context,
-                            Object error,
-                            StackTrace? stackTrace,
-                          ) {
-                            return ColoredBox(
-                              color: AppColors.gold.withValues(
-                                alpha: isDark ? 0.14 : 0.09,
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.image_outlined,
-                                  color: AppColors.gold,
-                                  size: 30,
-                                ),
-                              ),
-                            );
-                          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _PostImage(imageUrl: post.imageUrl, isDark: isDark),
+              ),
+
+              if (description.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.035)
+                      : Colors.black.withValues(alpha: 0.025),
+                  padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+                  child: Text(
+                    description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.5,
+                      fontWeight: FontWeight.w300,
+                      letterSpacing: 0.15,
+                      color: isDark
+                          ? const Color(0xFFE5E5E5)
+                          : const Color(0xFF444444),
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        post.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurface,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        post.subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PostImage extends StatelessWidget {
+  const _PostImage({required this.imageUrl, required this.isDark});
+
+  final String? imageUrl;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl == null || imageUrl!.trim().isEmpty) {
+      return ColoredBox(
+        color: AppColors.gold.withValues(alpha: isDark ? 0.14 : 0.09),
+        child: const Center(
+          child: Icon(Icons.image_outlined, color: AppColors.gold, size: 30),
+        ),
+      );
+    }
+
+    return Image.network(
+      imageUrl!,
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.high,
+      loadingBuilder:
+          (
+            BuildContext context,
+            Widget child,
+            ImageChunkEvent? loadingProgress,
+          ) {
+            if (loadingProgress == null) {
+              return child;
+            }
+
+            return const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 1.5),
+              ),
+            );
+          },
+      errorBuilder:
+          (BuildContext context, Object error, StackTrace? stackTrace) {
+            return ColoredBox(
+              color: AppColors.gold.withValues(alpha: isDark ? 0.14 : 0.09),
+              child: const Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: AppColors.gold,
+                  size: 30,
+                ),
+              ),
+            );
+          },
     );
   }
 }

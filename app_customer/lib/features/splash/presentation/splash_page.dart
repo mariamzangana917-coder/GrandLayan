@@ -20,10 +20,18 @@ class SalonPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
-    final surfaceColor = isDark ? const Color(0xFF0F0F0F) : const Color(0xFFFAF9F7);
-    final primaryTextColor = isDark ? const Color(0xFFF7F7F7) : const Color(0xFF171717);
-    final secondaryTextColor = isDark ? const Color(0xFFAAAAAA) : const Color(0xFF737373);
+    final backgroundColor = isDark
+        ? const Color(0xFF000000)
+        : const Color(0xFFFFFFFF);
+    final surfaceColor = isDark
+        ? const Color(0xFF0F0F0F)
+        : const Color(0xFFFAF9F7);
+    final primaryTextColor = isDark
+        ? const Color(0xFFF7F7F7)
+        : const Color(0xFF171717);
+    final secondaryTextColor = isDark
+        ? const Color(0xFFAAAAAA)
+        : const Color(0xFF737373);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -56,26 +64,61 @@ class SalonPage extends StatelessWidget {
                       onPressed: () => _showComingSoon(context, 'الحجز'),
                     ),
                     const SizedBox(height: 24),
-                    _SectionTitle(title: 'آخر المنشورات', textColor: primaryTextColor),
+                    _SectionTitle(
+                      title: 'آخر المنشورات',
+                      textColor: primaryTextColor,
+                    ),
                     const SizedBox(height: 12),
                     _LatestPostsSection(
                       isDark: isDark,
                       surfaceColor: surfaceColor,
                       primaryTextColor: primaryTextColor,
                       secondaryTextColor: secondaryTextColor,
-                      onPostTap: () => _showComingSoon(context, 'تفاصيل المنشور'),
+                      onPostTap: () =>
+                          _showComingSoon(context, 'تفاصيل المنشور'),
                     ),
                     const SizedBox(height: 26),
-                    _SectionTitle(title: 'الخدمات', textColor: primaryTextColor),
+                    _SectionTitle(
+                      title: 'الخدمات',
+                      textColor: primaryTextColor,
+                    ),
                     const SizedBox(height: 12),
                     ...[
-                      ('الشعر', 'قص، صبغ، معالج، سشوار وتسريحات', Icons.content_cut_rounded),
-                      ('الأظافر', 'جل، إدامة، تركيب وعناية متكاملة', Icons.back_hand_outlined),
-                      ('المكياج', 'إطلالات ناعمة وفخمة لكل مناسبة', Icons.brush_outlined),
-                      ('التسريحات', 'تسريحات يومية ومناسبات وأعراس', Icons.auto_awesome_outlined),
-                      ('الرموش', 'طرفية، كاملة، كثيفة وتقنيات متقدمة', Icons.remove_red_eye_outlined),
-                      ('الحواجب', 'فايبروز، نانو بروز، أومبري وعناية', Icons.face_retouching_natural_outlined),
-                      ('بكجات العرايس', 'بكجات متكاملة للحنة والعرس والمهر', Icons.diamond_outlined),
+                      (
+                        'الشعر',
+                        'قص، صبغ، معالج، سشوار وتسريحات',
+                        Icons.content_cut_rounded,
+                      ),
+                      (
+                        'الأظافر',
+                        'جل، إدامة، تركيب وعناية متكاملة',
+                        Icons.back_hand_outlined,
+                      ),
+                      (
+                        'المكياج',
+                        'إطلالات ناعمة وفخمة لكل مناسبة',
+                        Icons.brush_outlined,
+                      ),
+                      (
+                        'التسريحات',
+                        'تسريحات يومية ومناسبات وأعراس',
+                        Icons.auto_awesome_outlined,
+                      ),
+                      (
+                        'الرموش',
+                        'طرفية، كاملة، كثيفة وتقنيات متقدمة',
+                        Icons.remove_red_eye_outlined,
+                      ),
+                      (
+                        'الحواجب',
+                        'فايبروز، نانو بروز، أومبري وعناية',
+                        Icons.face_retouching_natural_outlined,
+                      ),
+                      (
+                        'بكجات العرايس',
+                        'بكجات متكاملة للحنة والعرس والمهر',
+                        Icons.diamond_outlined,
+                      ),
                     ].expand((item) sync* {
                       yield _SalonCategoryCard(
                         title: item.$1,
@@ -101,7 +144,11 @@ class SalonPage extends StatelessWidget {
 }
 
 class _SalonHeader extends StatelessWidget {
-  const _SalonHeader({required this.title, required this.textColor, required this.onBackPressed});
+  const _SalonHeader({
+    required this.title,
+    required this.textColor,
+    required this.onBackPressed,
+  });
   final String title;
   final Color textColor;
   final VoidCallback onBackPressed;
@@ -116,7 +163,11 @@ class _SalonHeader extends StatelessWidget {
           Center(
             child: Text(
               title,
-              style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                color: textColor,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           PositionedDirectional(
@@ -124,7 +175,11 @@ class _SalonHeader extends StatelessWidget {
             child: IconButton(
               tooltip: 'رجوع',
               onPressed: onBackPressed,
-              icon: Icon(Icons.arrow_forward_ios_rounded, color: textColor, size: 20),
+              icon: Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: textColor,
+                size: 20,
+              ),
             ),
           ),
         ],
@@ -134,7 +189,12 @@ class _SalonHeader extends StatelessWidget {
 }
 
 class _OffersBanner extends StatelessWidget {
-  const _OffersBanner({required this.isDark, required this.primaryTextColor, required this.secondaryTextColor, required this.onTap});
+  const _OffersBanner({
+    required this.isDark,
+    required this.primaryTextColor,
+    required this.secondaryTextColor,
+    required this.onTap,
+  });
   final bool isDark;
   final Color primaryTextColor;
   final Color secondaryTextColor;
@@ -175,11 +235,33 @@ class _OffersBanner extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('العروض الحالية', style: TextStyle(color: AppColors.gold, fontSize: 14, fontWeight: FontWeight.w800)),
+                      const Text(
+                        'العروض الحالية',
+                        style: TextStyle(
+                          color: AppColors.gold,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      Text('عروض مختارة لعنايتكِ وجمالكِ', style: TextStyle(color: primaryTextColor, fontSize: 22, fontWeight: FontWeight.w800, height: 1.3)),
+                      Text(
+                        'عروض مختارة لعنايتكِ وجمالكِ',
+                        style: TextStyle(
+                          color: primaryTextColor,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          height: 1.3,
+                        ),
+                      ),
                       const SizedBox(height: 7),
-                      Text('تابعي أحدث العروض والبكجات الخاصة بالصالون', style: TextStyle(color: secondaryTextColor, fontSize: 12.8, height: 1.5)),
+                      Text(
+                        'تابعي أحدث العروض والبكجات الخاصة بالصالون',
+                        style: TextStyle(
+                          color: secondaryTextColor,
+                          fontSize: 12.8,
+                          height: 1.5,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -188,10 +270,16 @@ class _OffersBanner extends StatelessWidget {
                   width: 68,
                   height: 68,
                   decoration: BoxDecoration(
-                    color: AppColors.gold.withValues(alpha: isDark ? 0.17 : 0.12),
+                    color: AppColors.gold.withValues(
+                      alpha: isDark ? 0.17 : 0.12,
+                    ),
                     borderRadius: BorderRadius.circular(22),
                   ),
-                  child: const Icon(Icons.local_offer_outlined, color: AppColors.gold, size: 32),
+                  child: const Icon(
+                    Icons.local_offer_outlined,
+                    color: AppColors.gold,
+                    size: 32,
+                  ),
                 ),
               ],
             ),
@@ -214,12 +302,17 @@ class _BookNowButton extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: const Icon(Icons.calendar_month_outlined, size: 22),
-        label: const Text('احجزي الآن', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        label: const Text(
+          'احجزي الآن',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: isDark ? AppColors.gold : AppColors.black,
           foregroundColor: isDark ? AppColors.black : AppColors.lightGold,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
         ),
       ),
     );
@@ -233,12 +326,25 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(title, style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.w800));
+    return Text(
+      title,
+      style: TextStyle(
+        color: textColor,
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+      ),
+    );
   }
 }
 
 class _LatestPostsSection extends StatelessWidget {
-  const _LatestPostsSection({required this.isDark, required this.surfaceColor, required this.primaryTextColor, required this.secondaryTextColor, required this.onPostTap});
+  const _LatestPostsSection({
+    required this.isDark,
+    required this.surfaceColor,
+    required this.primaryTextColor,
+    required this.secondaryTextColor,
+    required this.onPostTap,
+  });
   final bool isDark;
   final Color surfaceColor;
   final Color primaryTextColor;
@@ -283,7 +389,16 @@ class _LatestPostsSection extends StatelessWidget {
 }
 
 class _PostCard extends StatelessWidget {
-  const _PostCard({required this.title, required this.subtitle, required this.icon, required this.isDark, required this.surfaceColor, required this.primaryTextColor, required this.secondaryTextColor, required this.onTap});
+  const _PostCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.isDark,
+    required this.surfaceColor,
+    required this.primaryTextColor,
+    required this.secondaryTextColor,
+    required this.onTap,
+  });
   final String title;
   final String subtitle;
   final IconData icon;
@@ -326,9 +441,23 @@ class _PostCard extends StatelessWidget {
                 child: Icon(icon, color: AppColors.gold, size: 22),
               ),
               const Spacer(),
-              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: primaryTextColor, fontSize: 14, fontWeight: FontWeight.w800)),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: primaryTextColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: secondaryTextColor, fontSize: 11.8)),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: secondaryTextColor, fontSize: 11.8),
+              ),
             ],
           ),
         ),
@@ -338,7 +467,16 @@ class _PostCard extends StatelessWidget {
 }
 
 class _SalonCategoryCard extends StatelessWidget {
-  const _SalonCategoryCard({required this.title, required this.subtitle, required this.icon, required this.isDark, required this.surfaceColor, required this.primaryTextColor, required this.secondaryTextColor, required this.onTap});
+  const _SalonCategoryCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.isDark,
+    required this.surfaceColor,
+    required this.primaryTextColor,
+    required this.secondaryTextColor,
+    required this.onTap,
+  });
   final String title;
   final String subtitle;
   final IconData icon;
@@ -384,16 +522,34 @@ class _SalonCategoryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: TextStyle(color: primaryTextColor, fontSize: 16.5, fontWeight: FontWeight.w800)),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: primaryTextColor,
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const SizedBox(height: 5),
-                    Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: secondaryTextColor, fontSize: 12.3, height: 1.45)),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: secondaryTextColor,
+                        fontSize: 12.3,
+                        height: 1.45,
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
               Icon(
                 Icons.arrow_back_ios_new_rounded,
-                color: isDark ? const Color(0xFF8A8A8A) : const Color(0xFF777777),
+                color: isDark
+                    ? const Color(0xFF8A8A8A)
+                    : const Color(0xFF777777),
                 size: 16,
               ),
             ],

@@ -108,6 +108,17 @@ class CustomerAuthNotifier extends AsyncNotifier<CustomerUser?> {
     return updatedCustomer;
   }
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    await _repository.changePassword(
+      currentPassword: currentPassword,
+      password: password,
+      passwordConfirmation: passwordConfirmation,
+    );
+  }
   Future<CustomerUser> deleteAvatar() async {
     final updatedCustomer = await _repository.deleteAvatar();
 

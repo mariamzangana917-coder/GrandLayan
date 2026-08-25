@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\BannerController as AdminBannerController;
 use App\Http\Controllers\Api\Customer\BannerController as CustomerBannerController;
-
+use App\Http\Controllers\Api\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Api\Customer\Chat\CustomerChatController;
 use App\Http\Controllers\Api\Admin\AdminAppointmentController;
 use App\Http\Controllers\Api\Admin\AdminGiftCardOrderController;
@@ -35,8 +35,8 @@ use App\Http\Controllers\Api\Admin\AdminGiftCardController;
 | Admin Authentication Routes
 |--------------------------------------------------------------------------
 |
-| هذه المسارات خاصة بتطبيق الإدارة.
-| لا تسمح بتسجيل الدخول إلا لحساب manager.
+| Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø³Ø§Ø±Ø§Øª Ø®Ø§ØµØ© Ø¨ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ø¥Ø¯Ø§Ø±Ø©.
+| Ù„Ø§ ØªØ³Ù…Ø­ Ø¨ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø¥Ù„Ø§ Ù„Ø­Ø³Ø§Ø¨ manager.
 |
 */
 
@@ -71,8 +71,8 @@ Route::prefix('auth')
 | Customer Authentication Routes
 |--------------------------------------------------------------------------
 |
-| هذه المسارات خاصة بتطبيق الزبونة.
-| إنشاء الحساب يفرض دور customer من الـ Backend.
+| Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø³Ø§Ø±Ø§Øª Ø®Ø§ØµØ© Ø¨ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ø²Ø¨ÙˆÙ†Ø©.
+| Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨ ÙŠÙØ±Ø¶ Ø¯ÙˆØ± customer Ù…Ù† Ø§Ù„Ù€ Backend.
 |
 */
 
@@ -106,6 +106,11 @@ Route::prefix('customer/auth')
                 [CustomerAuthController::class, 'logout']
             )->name('customer.auth.logout');
 
+            Route::post(
+                'change-password',
+                [CustomerAuthController::class, 'changePassword']
+            )->name('customer.auth.change-password');
+
             Route::prefix('chat')->group(function (): void {
     Route::get('/conversations', [CustomerChatController::class, 'index']);
     Route::get('/conversations/{conversation}', [CustomerChatController::class, 'show']);
@@ -122,7 +127,7 @@ Route::prefix('customer/auth')
 | Customer Profile And Favorites Routes
 |--------------------------------------------------------------------------
 |
-| هذه المسارات خاصة ببيانات الزبونة ومفضلاتها.
+| Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø³Ø§Ø±Ø§Øª Ø®Ø§ØµØ© Ø¨Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø²Ø¨ÙˆÙ†Ø© ÙˆÙ…ÙØ¶Ù„Ø§ØªÙ‡Ø§.
 |
 */
 Route::prefix('customer')
@@ -231,7 +236,7 @@ Route::prefix('customer')
         | Customer Gift Cards
         |--------------------------------------------------------------------------
         |
-        | تعرض البطاقات الصادرة والمملوكة للزبونة المسجلة فقط.
+        | ØªØ¹Ø±Ø¶ Ø§Ù„Ø¨Ø·Ø§Ù‚Ø§Øª Ø§Ù„ØµØ§Ø¯Ø±Ø© ÙˆØ§Ù„Ù…Ù…Ù„ÙˆÙƒØ© Ù„Ù„Ø²Ø¨ÙˆÙ†Ø© Ø§Ù„Ù…Ø³Ø¬Ù„Ø© ÙÙ‚Ø·.
         |
         */
 
@@ -255,8 +260,8 @@ Route::prefix('customer')
 | Customer Appointment Routes
 |--------------------------------------------------------------------------
 |
-| هذه المسارات خاصة بالزبونة فقط.
-| لا يجب وضعها داخل مجموعة admin.
+| Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø³Ø§Ø±Ø§Øª Ø®Ø§ØµØ© Ø¨Ø§Ù„Ø²Ø¨ÙˆÙ†Ø© ÙÙ‚Ø·.
+| Ù„Ø§ ÙŠØ¬Ø¨ ÙˆØ¶Ø¹Ù‡Ø§ Ø¯Ø§Ø®Ù„ Ù…Ø¬Ù…ÙˆØ¹Ø© admin.
 |
 */
 Route::prefix('appointments')
@@ -299,7 +304,7 @@ Route::prefix('appointments')
 | Admin Routes
 |--------------------------------------------------------------------------
 |
-| جميع المسارات هنا خاصة بالمديرة فقط.
+| Ø¬Ù…ÙŠØ¹ Ø§Ù„Ù…Ø³Ø§Ø±Ø§Øª Ù‡Ù†Ø§ Ø®Ø§ØµØ© Ø¨Ø§Ù„Ù…Ø¯ÙŠØ±Ø© ÙÙ‚Ø·.
 |
 */
 
@@ -309,6 +314,18 @@ Route::prefix('admin')
         'role:manager',
     ])
     ->group(function (): void {
+Route::apiResource(
+    'posts',
+    AdminPostController::class
+)->only([
+    'index',
+    'store',
+    'show',
+    'update',
+    'destroy',
+]);
+
+
                 Route::post(
             'banners/reorder',
             [AdminBannerController::class, 'reorder']
@@ -583,3 +600,4 @@ Route::prefix('admin')
 
 
 require __DIR__.'/notifications.php';
+

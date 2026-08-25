@@ -17,8 +17,7 @@ class CustomerLoginPage extends ConsumerStatefulWidget {
   }
 }
 
-class _CustomerLoginPageState
-    extends ConsumerState<CustomerLoginPage> {
+class _CustomerLoginPageState extends ConsumerState<CustomerLoginPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _loginController = TextEditingController();
@@ -65,17 +64,12 @@ class _CustomerLoginPageState
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark =
-        ref.watch(themeModeProvider) == ThemeMode.dark;
+    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
 
     final authState = ref.watch(customerAuthProvider);
     final isSubmitting = authState.isLoading;
@@ -84,9 +78,7 @@ class _CustomerLoginPageState
         ? const Color(0xFF000000)
         : const Color(0xFFFFFFFF);
 
-    final textColor = isDark
-        ? Colors.white
-        : const Color(0xFF161616);
+    final textColor = isDark ? Colors.white : const Color(0xFF161616);
 
     final secondaryTextColor = isDark
         ? const Color(0xFFB9B9B9)
@@ -104,36 +96,21 @@ class _CustomerLoginPageState
       backgroundColor: backgroundColor,
       body: Stack(
         children: [
-          Positioned.fill(
-            child: ColoredBox(
-              color: backgroundColor,
-            ),
-          ),
+          Positioned.fill(child: ColoredBox(color: backgroundColor)),
           Positioned.fill(
             child: IgnorePointer(
-              child: CustomPaint(
-                painter: _AuthLinesPainter(
-                  isDark: isDark,
-                ),
-              ),
+              child: CustomPaint(painter: _AuthLinesPainter(isDark: isDark)),
             ),
           ),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
-                  physics:
-                      const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(
-                    22,
-                    12,
-                    22,
-                    28,
-                  ),
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(22, 12, 22, 28),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight:
-                          constraints.maxHeight - 40,
+                      minHeight: constraints.maxHeight - 40,
                     ),
                     child: Form(
                       key: _formKey,
@@ -148,41 +125,29 @@ class _CustomerLoginPageState
                                         context.pop();
                                       },
                                 icon: Icon(
-                                  Icons
-                                      .arrow_back_ios_new_rounded,
+                                  Icons.arrow_back_ios_new_rounded,
                                   color: textColor,
                                   size: 21,
                                 ),
                               ),
                               const Spacer(),
-                              const LuxuryThemeToggle(
-                                size: 34,
-                              ),
+                              const LuxuryThemeToggle(size: 34),
                             ],
                           ),
                           const SizedBox(height: 18),
-                          _AuthLogo(
-                            asset: logoAsset,
-                            isDark: isDark,
-                          ),
+                          _AuthLogo(asset: logoAsset, isDark: isDark),
                           const SizedBox(height: 28),
                           _AuthTextField(
-                            controller:
-                                _loginController,
-                            label:
-                                'البريد الإلكتروني أو رقم الهاتف',
+                            controller: _loginController,
+                            label: 'البريد الإلكتروني أو رقم الهاتف',
                             hint: 'example@email.com',
-                            icon: Icons
-                                .person_outline_rounded,
-                            keyboardType:
-                                TextInputType
-                                    .emailAddress,
+                            icon: Icons.person_outline_rounded,
+                            keyboardType: TextInputType.emailAddress,
                             isDark: isDark,
                             fieldColor: fieldColor,
                             textColor: textColor,
                             validator: (value) {
-                              final input =
-                                  value?.trim() ?? '';
+                              final input = value?.trim() ?? '';
 
                               if (input.isEmpty) {
                                 return 'البريد الإلكتروني أو رقم الهاتف مطلوب.';
@@ -197,36 +162,29 @@ class _CustomerLoginPageState
                           ),
                           const SizedBox(height: 16),
                           _AuthTextField(
-                            controller:
-                                _passwordController,
+                            controller: _passwordController,
                             label: 'كلمة المرور',
                             hint: '••••••••',
-                            icon:
-                                Icons.lock_outline_rounded,
-                            obscureText:
-                                _obscurePassword,
+                            icon: Icons.lock_outline_rounded,
+                            obscureText: _obscurePassword,
                             isDark: isDark,
                             fieldColor: fieldColor,
                             textColor: textColor,
                             suffixIcon: IconButton(
                               onPressed: () {
                                 setState(() {
-                                  _obscurePassword =
-                                      !_obscurePassword;
+                                  _obscurePassword = !_obscurePassword;
                                 });
                               },
                               icon: Icon(
                                 _obscurePassword
-                                    ? Icons
-                                          .visibility_off_outlined
-                                    : Icons
-                                          .visibility_outlined,
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
                                 color: AppColors.gold,
                               ),
                             ),
                             validator: (value) {
-                              if (value == null ||
-                                  value.isEmpty) {
+                              if (value == null || value.isEmpty) {
                                 return 'كلمة المرور مطلوبة.';
                               }
 
@@ -235,15 +193,12 @@ class _CustomerLoginPageState
                           ),
                           const SizedBox(height: 10),
                           Align(
-                            alignment:
-                                AlignmentDirectional
-                                    .centerEnd,
+                            alignment: AlignmentDirectional.centerEnd,
                             child: TextButton(
                               onPressed: isSubmitting
                                   ? null
                                   : () {
-                                      ScaffoldMessenger
-                                          .of(context)
+                                      ScaffoldMessenger.of(context)
                                         ..hideCurrentSnackBar()
                                         ..showSnackBar(
                                           const SnackBar(
@@ -257,8 +212,7 @@ class _CustomerLoginPageState
                                 'نسيتِ كلمة المرور؟',
                                 style: TextStyle(
                                   color: AppColors.gold,
-                                  fontWeight:
-                                      FontWeight.w700,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
@@ -268,11 +222,8 @@ class _CustomerLoginPageState
                             width: double.infinity,
                             height: 54,
                             child: ElevatedButton(
-                              onPressed: isSubmitting
-                                  ? null
-                                  : _submit,
-                              style:
-                                  ElevatedButton.styleFrom(
+                              onPressed: isSubmitting ? null : _submit,
+                              style: ElevatedButton.styleFrom(
                                 elevation: 0,
                                 backgroundColor: isDark
                                     ? AppColors.gold
@@ -280,20 +231,12 @@ class _CustomerLoginPageState
                                 foregroundColor: isDark
                                     ? AppColors.black
                                     : AppColors.lightGold,
-                                disabledBackgroundColor:
-                                    AppColors.gold
-                                        .withValues(
-                                  alpha: 0.55,
-                                ),
-                                shape:
-                                    RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(
-                                    17,
-                                  ),
+                                disabledBackgroundColor: AppColors.gold
+                                    .withValues(alpha: 0.55),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(17),
                                   side: const BorderSide(
-                                    color:
-                                        AppColors.gold,
+                                    color: AppColors.gold,
                                     width: 1,
                                   ),
                                 ),
@@ -302,35 +245,30 @@ class _CustomerLoginPageState
                                   ? SizedBox(
                                       width: 22,
                                       height: 22,
-                                      child:
-                                          CircularProgressIndicator(
+                                      child: CircularProgressIndicator(
                                         strokeWidth: 2.2,
                                         color: isDark
                                             ? AppColors.black
-                                            : AppColors
-                                                  .lightGold,
+                                            : AppColors.lightGold,
                                       ),
                                     )
                                   : const Text(
                                       'تسجيل الدخول',
                                       style: TextStyle(
                                         fontSize: 16,
-                                        fontWeight:
-                                            FontWeight.w800,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                             ),
                           ),
                           const SizedBox(height: 24),
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
                                 'ليس لديكِ حساب؟',
                                 style: TextStyle(
-                                  color:
-                                      secondaryTextColor,
+                                  color: secondaryTextColor,
                                   fontSize: 14,
                                 ),
                               ),
@@ -338,17 +276,13 @@ class _CustomerLoginPageState
                                 onPressed: isSubmitting
                                     ? null
                                     : () {
-                                        context.goNamed(
-                                          'customer-register',
-                                        );
+                                        context.goNamed('customer-register');
                                       },
                                 child: const Text(
                                   'إنشاء حساب',
                                   style: TextStyle(
-                                    color:
-                                        AppColors.gold,
-                                    fontWeight:
-                                        FontWeight.w800,
+                                    color: AppColors.gold,
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
                               ),
@@ -369,10 +303,7 @@ class _CustomerLoginPageState
 }
 
 class _AuthLogo extends StatelessWidget {
-  const _AuthLogo({
-    required this.asset,
-    required this.isDark,
-  });
+  const _AuthLogo({required this.asset, required this.isDark});
 
   final String asset;
   final bool isDark;
@@ -380,9 +311,7 @@ class _AuthLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: isDark
-          ? const Color(0xFF000000)
-          : const Color(0xFFFFFFFF),
+      color: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
       child: SizedBox(
         width: 205,
         height: 145,
@@ -392,8 +321,7 @@ class _AuthLogo extends StatelessWidget {
             child: Image.asset(
               asset,
               fit: BoxFit.cover,
-              filterQuality:
-                  FilterQuality.high,
+              filterQuality: FilterQuality.high,
               gaplessPlayback: true,
             ),
           ),
@@ -446,95 +374,58 @@ class _AuthTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(
-          icon,
-          color: AppColors.gold,
-        ),
+        prefixIcon: Icon(icon, color: AppColors.gold),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: fieldColor,
         labelStyle: TextStyle(
-          color: isDark
-              ? const Color(0xFFC9C9C9)
-              : const Color(0xFF6C6C6C),
+          color: isDark ? const Color(0xFFC9C9C9) : const Color(0xFF6C6C6C),
         ),
         hintStyle: TextStyle(
-          color: isDark
-              ? const Color(0xFF777777)
-              : const Color(0xFFAAAAAA),
+          color: isDark ? const Color(0xFF777777) : const Color(0xFFAAAAAA),
         ),
         border: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(17),
-          borderSide: BorderSide(
-            color: AppColors.gold.withValues(
-              alpha: 0.35,
-            ),
-          ),
+          borderRadius: BorderRadius.circular(17),
+          borderSide: BorderSide(color: AppColors.gold.withValues(alpha: 0.35)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(17),
           borderSide: BorderSide(
-            color: AppColors.gold.withValues(
-              alpha: isDark ? 0.40 : 0.28,
-            ),
+            color: AppColors.gold.withValues(alpha: isDark ? 0.40 : 0.28),
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(17),
-          borderSide: const BorderSide(
-            color: AppColors.gold,
-            width: 1.4,
-          ),
+          borderRadius: BorderRadius.circular(17),
+          borderSide: const BorderSide(color: AppColors.gold, width: 1.4),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(17),
-          borderSide: const BorderSide(
-            color: Colors.redAccent,
-          ),
+          borderRadius: BorderRadius.circular(17),
+          borderSide: const BorderSide(color: Colors.redAccent),
         ),
-        focusedErrorBorder:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(17),
-          borderSide: const BorderSide(
-            color: Colors.redAccent,
-            width: 1.4,
-          ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(17),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.4),
         ),
       ),
     );
   }
 }
 
-class _AuthLinesPainter
-    extends CustomPainter {
-  const _AuthLinesPainter({
-    required this.isDark,
-  });
+class _AuthLinesPainter extends CustomPainter {
+  const _AuthLinesPainter({required this.isDark});
 
   final bool isDark;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.gold.withValues(
-        alpha: isDark ? 0.11 : 0.09,
-      )
+      ..color = AppColors.gold.withValues(alpha: isDark ? 0.11 : 0.09)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8;
 
-    for (var index = 0;
-        index < 3;
-        index++) {
+    for (var index = 0; index < 3; index++) {
       final topPath = Path()
-        ..moveTo(
-          -20,
-          70 + index * 16,
-        )
+        ..moveTo(-20, 70 + index * 16)
         ..cubicTo(
           size.width * 0.20,
           20 + index * 10,
@@ -547,35 +438,24 @@ class _AuthLinesPainter
       canvas.drawPath(topPath, paint);
     }
 
-    for (var index = 0;
-        index < 4;
-        index++) {
+    for (var index = 0; index < 4; index++) {
       final bottomPath = Path()
-        ..moveTo(
-          size.width * 0.18,
-          size.height + 15 - index * 10,
-        )
+        ..moveTo(size.width * 0.18, size.height + 15 - index * 10)
         ..cubicTo(
           size.width * 0.48,
           size.height * 0.94,
           size.width * 0.78,
           size.height * 0.84,
           size.width + 25,
-          size.height * 0.78 -
-              index * 12,
+          size.height * 0.78 - index * 12,
         );
 
-      canvas.drawPath(
-        bottomPath,
-        paint,
-      );
+      canvas.drawPath(bottomPath, paint);
     }
   }
 
   @override
-  bool shouldRepaint(
-    covariant _AuthLinesPainter oldDelegate,
-  ) {
+  bool shouldRepaint(covariant _AuthLinesPainter oldDelegate) {
     return oldDelegate.isDark != isDark;
   }
 }

@@ -23,6 +23,27 @@ abstract class BannerRequest extends FormRequest
 
     abstract protected function fieldsAreRequired(): bool;
 
+    protected function prepareForValidation(): void
+    {
+        $payload = [];
+
+        if ($this->exists('action_target_id')) {
+            $payload['action_target_id'] = $this->blankToNull(
+                $this->input('action_target_id'),
+            );
+        }
+
+        if ($this->exists('external_url')) {
+            $payload['external_url'] = $this->blankToNull(
+                $this->input('external_url'),
+            );
+        }
+
+        if ($payload !== []) {
+            $this->merge($payload);
+        }
+    }
+
     public function rules(): array
     {
         $required = $this->fieldsAreRequired() ? 'required' : 'sometimes';
@@ -37,6 +58,7 @@ abstract class BannerRequest extends FormRequest
                     ->types(['jpg', 'jpeg', 'png', 'webp'])
                     ->max('2mb'),
             ],
+            'placement' => [$required, Rule::in(['home', 'salon', 'clinic'])],
             'action_type' => [$required, Rule::in(BannerActionType::values())],
             'action_target_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'external_url' => ['sometimes', 'nullable', 'string', 'max:2048'],
@@ -53,6 +75,7 @@ abstract class BannerRequest extends FormRequest
             $banner = $this->route('banner');
             $banner = $banner instanceof Banner ? $banner : null;
 
+            $actionTypeProvided = $this->exists('action_type');
             $actionTypeValue = $this->input(
                 'action_type',
                 $banner?->action_type?->value ?? BannerActionType::None->value,
@@ -64,13 +87,17 @@ abstract class BannerRequest extends FormRequest
                 return;
             }
 
-            $targetId = $this->has('action_target_id')
-                ? $this->input('action_target_id')
-                : $banner?->action_target_id;
+            $targetId = $this->resolveActionTargetId(
+                banner: $banner,
+                actionType: $actionType,
+                actionTypeProvided: $actionTypeProvided,
+            );
 
-            $externalUrl = $this->has('external_url')
-                ? $this->input('external_url')
-                : $banner?->external_url;
+            $externalUrl = $this->resolveExternalUrl(
+                banner: $banner,
+                actionType: $actionType,
+                actionTypeProvided: $actionTypeProvided,
+            );
 
             $this->validateActionPayload(
                 validator: $validator,
@@ -81,6 +108,51 @@ abstract class BannerRequest extends FormRequest
 
             $this->validateDateRange($validator, $banner);
         });
+    }
+
+    /**
+     * FormData often omits null fields. When switching to a screen-only action,
+     * do not inherit a leftover target from the existing banner row.
+     */
+    private function resolveActionTargetId(
+        ?Banner $banner,
+        BannerActionType $actionType,
+        bool $actionTypeProvided,
+    ): mixed {
+        if ($this->exists('action_target_id')) {
+            return $this->blankToNull($this->input('action_target_id'));
+        }
+
+        if ($actionTypeProvided && ! $actionType->requiresTarget()) {
+            return null;
+        }
+
+        return $banner?->action_target_id;
+    }
+
+    private function resolveExternalUrl(
+        ?Banner $banner,
+        BannerActionType $actionType,
+        bool $actionTypeProvided,
+    ): mixed {
+        if ($this->exists('external_url')) {
+            return $this->blankToNull($this->input('external_url'));
+        }
+
+        if ($actionTypeProvided && ! $actionType->requiresExternalUrl()) {
+            return null;
+        }
+
+        return $banner?->external_url;
+    }
+
+    private function blankToNull(mixed $value): mixed
+    {
+        if ($value === null || $value === '' || $value === 'null') {
+            return null;
+        }
+
+        return $value;
     }
 
     private function validateActionPayload(

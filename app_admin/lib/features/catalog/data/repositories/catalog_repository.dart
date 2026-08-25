@@ -5,9 +5,7 @@ import '../catalog_item.dart';
 import '../services/catalog_api_service.dart';
 
 class CatalogRepository {
-  const CatalogRepository({
-    this.apiService = const CatalogApiService(),
-  });
+  const CatalogRepository({this.apiService = const CatalogApiService()});
 
   final CatalogApiService apiService;
 
@@ -17,8 +15,7 @@ class CatalogRepository {
     String? type,
   }) async {
     try {
-      final Response<dynamic> response =
-          await apiService.getCatalogItems(
+      final Response<dynamic> response = await apiService.getCatalogItems(
         department: department,
         categoryId: categoryId,
         type: type,
@@ -31,8 +28,7 @@ class CatalogRepository {
           .map(
             (Map<dynamic, dynamic> item) => CatalogItem.fromJson(
               item.map(
-                (dynamic key, dynamic value) =>
-                    MapEntry(key.toString(), value),
+                (dynamic key, dynamic value) => MapEntry(key.toString(), value),
               ),
             ),
           )
@@ -44,11 +40,11 @@ class CatalogRepository {
 
   Future<CatalogItem> getCatalogItem(int catalogItemId) async {
     try {
-      final Response<dynamic> response =
-          await apiService.getCatalogItem(catalogItemId);
+      final Response<dynamic> response = await apiService.getCatalogItem(
+        catalogItemId,
+      );
 
-      final Map<String, dynamic> item =
-          _extractObject(response.data);
+      final Map<String, dynamic> item = _extractObject(response.data);
 
       return CatalogItem.fromJson(item);
     } on DioException catch (error) {
@@ -69,9 +65,7 @@ class CatalogRepository {
       }
     }
 
-    throw const FormatException(
-      'تنسيق بيانات الكتالوج غير صحيح.',
-    );
+    throw const FormatException('تنسيق بيانات الكتالوج غير صحيح.');
   }
 
   Map<String, dynamic> _extractObject(dynamic responseData) {
@@ -87,13 +81,10 @@ class CatalogRepository {
 
     if (value is Map) {
       return value.map(
-        (dynamic key, dynamic itemValue) =>
-            MapEntry(key.toString(), itemValue),
+        (dynamic key, dynamic itemValue) => MapEntry(key.toString(), itemValue),
       );
     }
 
-    throw const FormatException(
-      'تنسيق بيانات تفاصيل الخدمة غير صحيح.',
-    );
+    throw const FormatException('تنسيق بيانات تفاصيل الخدمة غير صحيح.');
   }
 }

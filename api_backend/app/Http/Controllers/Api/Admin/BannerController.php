@@ -31,6 +31,10 @@ class BannerController extends Controller
             $query->where('is_active', $request->boolean('is_active'));
         }
 
+        if ($request->filled('placement')) {
+            $query->where('placement', $request->string('placement')->toString());
+        }
+
         return BannerResource::collection($query->get());
     }
 

@@ -49,7 +49,8 @@ class BannerManagementTest extends TestCase
             'title' => 'عرض العرائس',
             'subtitle' => 'احجزي موعدك الآن',
             'image' => UploadedFile::fake()->image('banner.jpg', 1200, 600)->size(500),
-            'action_type' => BannerActionType::Booking->value,
+            'placement' => 'home',
+            'action_type' => BannerActionType::Offers->value,
             'starts_at' => now()->subMinute()->toIso8601String(),
             'ends_at' => now()->addWeek()->toIso8601String(),
             'sort_order' => 1,
@@ -59,7 +60,8 @@ class BannerManagementTest extends TestCase
         $response
             ->assertCreated()
             ->assertJsonPath('data.title', 'عرض العرائس')
-            ->assertJsonPath('data.action_type', 'booking')
+            ->assertJsonPath('data.action_type', 'offers')
+            ->assertJsonPath('data.placement', 'home')
             ->assertJsonPath('data.is_active', true);
 
         $banner = Banner::query()->firstOrFail();
@@ -68,7 +70,8 @@ class BannerManagementTest extends TestCase
 
         $this->assertDatabaseHas('banners', [
             'title' => 'عرض العرائس',
-            'action_type' => 'booking',
+            'action_type' => 'offers',
+            'placement' => 'home',
             'sort_order' => 1,
             'is_active' => true,
         ]);
@@ -80,6 +83,7 @@ class BannerManagementTest extends TestCase
 
         $this->post('/api/admin/banners', [
             'image' => UploadedFile::fake()->image('banner.jpg', 1200, 600),
+            'placement' => 'home',
             'action_type' => BannerActionType::ExternalUrl->value,
             'external_url' => 'http://example.com',
         ], ['Accept' => 'application/json'])
@@ -93,10 +97,95 @@ class BannerManagementTest extends TestCase
 
         $this->post('/api/admin/banners', [
             'image' => UploadedFile::fake()->image('banner.jpg', 1200, 600),
+            'placement' => 'home',
             'action_type' => BannerActionType::CatalogItem->value,
         ], ['Accept' => 'application/json'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('action_target_id');
+    }
+
+    public function test_updating_from_targeted_action_to_none_clears_target_without_422(): void
+    {
+        $this->actingAsManager();
+
+        $banner = Banner::factory()->create([
+            'image_path' => 'banners/old.jpg',
+            'placement' => 'home',
+            'action_type' => BannerActionType::CatalogItem,
+            'action_target_id' => 99,
+            'external_url' => null,
+            'is_active' => true,
+        ]);
+
+        $this->post("/api/admin/banners/{$banner->id}", [
+            '_method' => 'PUT',
+            'action_type' => BannerActionType::None->value,
+            'action_target_id' => '',
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.action_type', 'none')
+            ->assertJsonPath('data.action_target_id', null);
+
+        $this->assertDatabaseHas('banners', [
+            'id' => $banner->id,
+            'action_type' => 'none',
+            'action_target_id' => null,
+        ]);
+    }
+
+    public function test_updating_to_offers_without_sending_target_still_clears_old_target(): void
+    {
+        $this->actingAsManager();
+
+        $banner = Banner::factory()->create([
+            'image_path' => 'banners/old.jpg',
+            'placement' => 'salon',
+            'action_type' => BannerActionType::Category,
+            'action_target_id' => 12,
+            'external_url' => null,
+            'is_active' => true,
+        ]);
+
+        $this->post("/api/admin/banners/{$banner->id}", [
+            '_method' => 'PUT',
+            'action_type' => BannerActionType::Offers->value,
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.action_type', 'offers')
+            ->assertJsonPath('data.action_target_id', null);
+
+        $this->assertDatabaseHas('banners', [
+            'id' => $banner->id,
+            'action_type' => 'offers',
+            'action_target_id' => null,
+        ]);
+    }
+
+    public function test_manager_can_create_gift_card_and_none_banners(): void
+    {
+        $this->actingAsManager();
+
+        $this->post('/api/admin/banners', [
+            'image' => UploadedFile::fake()->image('gift.jpg', 1200, 600),
+            'placement' => 'home',
+            'action_type' => BannerActionType::GiftCard->value,
+            'sort_order' => 2,
+            'is_active' => true,
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.action_type', 'gift_card')
+            ->assertJsonPath('data.action_target_id', null);
+
+        $this->post('/api/admin/banners', [
+            'image' => UploadedFile::fake()->image('none.jpg', 1200, 600),
+            'placement' => 'clinic',
+            'action_type' => BannerActionType::None->value,
+            'sort_order' => 3,
+            'is_active' => true,
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.action_type', 'none')
+            ->assertJsonPath('data.action_target_id', null);
     }
 
     public function test_manager_can_replace_banner_image(): void

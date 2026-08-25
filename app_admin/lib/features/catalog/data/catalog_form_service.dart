@@ -123,78 +123,63 @@ class CatalogFormService {
     }
   }
 
+  Future<void> uploadImages({
+    required int catalogItemId,
+    required List<String> imagePaths,
+  }) async {
+    if (imagePaths.isEmpty) return;
 
-Future<void> uploadImages({
-  required int catalogItemId,
-  required List<String> imagePaths,
-}) async {
-  if (imagePaths.isEmpty) return;
+    try {
+      final formData = FormData();
 
-  try {
-    final formData = FormData();
+      for (final path in imagePaths) {
+        final normalizedPath = path.trim();
 
-    for (final path in imagePaths) {
-      final normalizedPath = path.trim();
+        if (normalizedPath.isEmpty) {
+          continue;
+        }
 
-      if (normalizedPath.isEmpty) {
-        continue;
+        final fileName = normalizedPath.replaceAll('\\', '/').split('/').last;
+
+        final multipartFile = await MultipartFile.fromFile(
+          normalizedPath,
+          filename: fileName,
+        );
+
+        formData.files.add(MapEntry('images[]', multipartFile));
       }
 
-      final fileName = normalizedPath
-          .replaceAll('\\', '/')
-          .split('/')
-          .last;
+      if (formData.files.isEmpty) {
+        throw const CatalogFormException('لم يتم العثور على الصور المختارة.');
+      }
 
-      final multipartFile = await MultipartFile.fromFile(
-        normalizedPath,
-        filename: fileName,
+      final response = await ApiClient.dio.post(
+        '/admin/catalog-items/$catalogItemId/images',
+        data: formData,
+        options: Options(
+          contentType: Headers.multipartFormDataContentType,
+          headers: const {'Accept': 'application/json'},
+        ),
       );
 
-      formData.files.add(
-        MapEntry('images[]', multipartFile),
+      final statusCode = response.statusCode ?? 0;
+
+      if (statusCode < 200 || statusCode >= 300) {
+        throw const CatalogFormException(
+          'تم إنشاء العنصر لكن لم يتم حفظ الصور.',
+        );
+      }
+    } on CatalogFormException {
+      rethrow;
+    } on DioException catch (error) {
+      throw CatalogFormException(
+        _messageFromDio(error, fallback: 'تم إنشاء العنصر لكن تعذر رفع الصور.'),
       );
+    } catch (error) {
+      throw CatalogFormException('تعذر قراءة الصورة المختارة: $error');
     }
-
-    if (formData.files.isEmpty) {
-      throw const CatalogFormException(
-        'لم يتم العثور على الصور المختارة.',
-      );
-    }
-
-    final response = await ApiClient.dio.post(
-      '/admin/catalog-items/$catalogItemId/images',
-      data: formData,
-      options: Options(
-        contentType: Headers.multipartFormDataContentType,
-        headers: const {
-          'Accept': 'application/json',
-        },
-      ),
-    );
-
-    final statusCode = response.statusCode ?? 0;
-
-    if (statusCode < 200 || statusCode >= 300) {
-      throw const CatalogFormException(
-        'تم إنشاء العنصر لكن لم يتم حفظ الصور.',
-      );
-    }
-  } on CatalogFormException {
-    rethrow;
-  } on DioException catch (error) {
-    throw CatalogFormException(
-      _messageFromDio(
-        error,
-        fallback:
-            'تم إنشاء العنصر لكن تعذر رفع الصور.',
-      ),
-    );
-  } catch (error) {
-    throw CatalogFormException(
-      'تعذر قراءة الصورة المختارة: $error',
-    );
   }
-}
+
   Future<void> addPackageServices({
     required int packageId,
     required List<PackageServiceDraft> services,

@@ -105,21 +105,21 @@ class WelcomePage extends ConsumerWidget {
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 340),
                               child: _PrimaryButton(
-  isDark: isDark,
-  onPressed: () {
-    context.pushNamed('customer-login');
-  },
-),
+                                isDark: isDark,
+                                onPressed: () {
+                                  context.pushNamed('customer-login');
+                                },
+                              ),
                             ),
                             const SizedBox(height: 12),
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 340),
-                                                    child: _SecondaryButton(
-                        isDark: isDark,
-                        onPressed: () {
-                          context.pushNamed('customer-register');
-                        },
-                      ),
+                              child: _SecondaryButton(
+                                isDark: isDark,
+                                onPressed: () {
+                                  context.pushNamed('customer-register');
+                                },
+                              ),
                             ),
                             const Spacer(),
                             SizedBox(height: isShort ? 20 : 42),

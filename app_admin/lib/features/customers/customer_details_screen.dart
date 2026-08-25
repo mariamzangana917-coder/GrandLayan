@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/network/api_url.dart';
 
 import 'data/customer_details_model.dart';
 import 'data/customer_details_service.dart';
@@ -263,9 +264,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     required Color primary,
     required Color secondary,
   }) {
-    final letter = details.name.isNotEmpty
+    final String letter = details.name.isNotEmpty
         ? details.name.characters.first
         : 'ع';
+
+    final String? avatarUrl = ApiUrl.resolveStorageUrl(details.avatar);
 
     return Column(
       children: [
@@ -277,20 +280,48 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             shape: BoxShape.circle,
             border: Border.all(color: _gold, width: 1.5),
           ),
-          child: Container(
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _gold.withValues(alpha: 0.14),
-            ),
-            child: Text(
-              letter,
-              style: const TextStyle(
-                fontSize: 42,
-                fontWeight: FontWeight.w900,
-                color: _gold,
-              ),
-            ),
+          child: ClipOval(
+            child: avatarUrl == null
+                ? _buildProfileLetter(letter)
+                : Image.network(
+                    avatarUrl,
+                    width: 104,
+                    height: 104,
+                    fit: BoxFit.cover,
+                    errorBuilder:
+                        (
+                          BuildContext context,
+                          Object error,
+                          StackTrace? stackTrace,
+                        ) {
+                          return _buildProfileLetter(letter);
+                        },
+                    loadingBuilder:
+                        (
+                          BuildContext context,
+                          Widget child,
+                          ImageChunkEvent? loadingProgress,
+                        ) {
+                          if (loadingProgress == null) {
+                            return child;
+                          }
+
+                          return Container(
+                            width: 104,
+                            height: 104,
+                            alignment: Alignment.center,
+                            color: _gold.withValues(alpha: 0.08),
+                            child: const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: _gold,
+                              ),
+                            ),
+                          );
+                        },
+                  ),
           ),
         ),
         const SizedBox(height: 14),
@@ -313,6 +344,23 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           style: TextStyle(fontSize: 12, color: secondary),
         ),
       ],
+    );
+  }
+
+  Widget _buildProfileLetter(String letter) {
+    return Container(
+      width: 104,
+      height: 104,
+      alignment: Alignment.center,
+      color: _gold.withValues(alpha: 0.14),
+      child: Text(
+        letter,
+        style: const TextStyle(
+          fontSize: 42,
+          fontWeight: FontWeight.w900,
+          color: _gold,
+        ),
+      ),
     );
   }
 

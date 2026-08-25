@@ -72,7 +72,7 @@ class AppointmentDetails {
       department: department,
       requestedStartAt: _toDateTime(json['requested_start_at']),
       confirmedStartAt: _toDateTime(json['confirmed_start_at']),
-      customerNotes: _toNullableText(json['customer_notes']),
+      customerNotes: _buildCustomerNotesWithCoupon(json),
       adminNotes: _toNullableText(json['admin_notes']),
       cancelledBy: _toNullableText(json['cancelled_by']),
       cancellationReason: _toNullableText(json['cancellation_reason']),
@@ -265,4 +265,85 @@ class AppointmentExecutableService {
       ),
     );
   }
+}
+
+String? _buildCustomerNotesWithCoupon(Map<String, dynamic> json) {
+  final String? notes = _couponNullableText(json['customer_notes']);
+  final dynamic rawCoupon = json['coupon'];
+
+  if (rawCoupon is! Map) {
+    return notes;
+  }
+
+  final Map<String, dynamic> coupon = Map<String, dynamic>.from(rawCoupon);
+  final String? code = _couponNullableText(coupon['code']);
+
+  if (code == null) {
+    return notes;
+  }
+
+  final String? couponName = _couponNullableText(coupon['name']);
+  final String? subtotal = _formatAppointmentMoney(json['subtotal_amount']);
+  final String? discount = _formatAppointmentMoney(json['discount_amount']);
+  final String? finalAmount = _formatAppointmentMoney(json['final_amount']);
+
+  final List<String> lines = <String>[
+    'بيانات الخصم',
+    'كود الخصم: $code',
+    if (couponName != null) 'اسم الكوبون: $couponName',
+    if (subtotal != null) 'السعر قبل الخصم: $subtotal',
+    if (discount != null) 'قيمة الخصم: $discount',
+    if (finalAmount != null) 'المبلغ النهائي: $finalAmount',
+  ];
+
+  if (notes != null) {
+    lines
+      ..add('')
+      ..add('ملاحظات الزبونة:')
+      ..add(notes);
+  }
+
+  return lines.join('\n');
+}
+
+String? _formatAppointmentMoney(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+
+  final num? amount = value is num
+      ? value
+      : num.tryParse(value.toString().trim());
+
+  if (amount == null) {
+    return null;
+  }
+
+  final String digits = amount.round().toString();
+  final StringBuffer result = StringBuffer();
+
+  for (int index = 0; index < digits.length; index++) {
+    final int remaining = digits.length - index;
+    result.write(digits[index]);
+
+    if (remaining > 1 && remaining % 3 == 1) {
+      result.write(',');
+    }
+  }
+
+  return '${result.toString()} د.ع';
+}
+
+String? _couponNullableText(Object? value) {
+  if (value == null) {
+    return null;
+  }
+
+  final String text = value.toString().trim();
+
+  if (text.isEmpty || text.toLowerCase() == 'null') {
+    return null;
+  }
+
+  return text;
 }

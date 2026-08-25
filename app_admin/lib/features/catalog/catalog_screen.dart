@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -9,33 +7,27 @@ import 'data/catalog_models.dart';
 import 'data/catalog_service.dart';
 
 enum DepartmentFilter { salon, clinic }
+
 enum TypeFilter { all, service, package }
 
 class CatalogScreen extends StatefulWidget {
-  const CatalogScreen({
-    required this.isDarkMode,
-    super.key,
-  });
+  const CatalogScreen({required this.isDarkMode, super.key});
 
   final bool isDarkMode;
 
   @override
-  State<CatalogScreen> createState() =>
-      _CatalogScreenState();
+  State<CatalogScreen> createState() => _CatalogScreenState();
 }
 
 class _CatalogScreenState extends State<CatalogScreen> {
   final CatalogService _service = const CatalogService();
-  final TextEditingController _search =
-      TextEditingController();
+  final TextEditingController _search = TextEditingController();
 
-
-  DepartmentFilter _department =
-      DepartmentFilter.salon;
+  DepartmentFilter _department = DepartmentFilter.salon;
   TypeFilter _type = TypeFilter.all;
 
- List<CatalogItem> _allItems = [];
-List<CatalogItem> _items = [];
+  List<CatalogItem> _allItems = [];
+  List<CatalogItem> _items = [];
 
   bool _loading = true;
   String? _error;
@@ -46,11 +38,11 @@ List<CatalogItem> _items = [];
     _load();
   }
 
-@override
-void dispose() {
-  _search.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   Future<void> _load() async {
     setState(() {
@@ -67,13 +59,12 @@ void dispose() {
 
       if (!mounted) return;
 
-     setState(() {
-  _allItems = page.items;
-  _loading = false;
-});
+      setState(() {
+        _allItems = page.items;
+        _loading = false;
+      });
 
-_applySearch();
-
+      _applySearch();
     } on CatalogException catch (error) {
       if (!mounted) return;
 
@@ -85,9 +76,7 @@ _applySearch();
   }
 
   String get _departmentCode =>
-      _department == DepartmentFilter.salon
-          ? 'salon'
-          : 'clinic';
+      _department == DepartmentFilter.salon ? 'salon' : 'clinic';
 
   String? get _typeCode {
     return switch (_type) {
@@ -97,71 +86,70 @@ _applySearch();
     };
   }
 
-void _onSearch(String _) {
-  _applySearch();
-}
+  void _onSearch(String _) {
+    _applySearch();
+  }
 
-void _applySearch() {
-  final query = _normalizeArabic(_search.text);
+  void _applySearch() {
+    final query = _normalizeArabic(_search.text);
 
-  final filtered = _allItems.where((item) {
-    if (item.departmentCode != _departmentCode) {
-      return false;
-    }
+    final filtered = _allItems.where((item) {
+      if (item.departmentCode != _departmentCode) {
+        return false;
+      }
 
-    if (_typeCode != null && item.type != _typeCode) {
-      return false;
-    }
+      if (_typeCode != null && item.type != _typeCode) {
+        return false;
+      }
 
-    if (query.isEmpty) {
-      return true;
-    }
+      if (query.isEmpty) {
+        return true;
+      }
 
-    final name = _normalizeArabic(item.name);
-    final category = _normalizeArabic(item.categoryName);
-    final description =
-        _normalizeArabic(item.description ?? '');
+      final name = _normalizeArabic(item.name);
+      final category = _normalizeArabic(item.categoryName);
+      final description = _normalizeArabic(item.description ?? '');
 
-    return name.startsWith(query) ||
-        name.contains(query) ||
-        category.startsWith(query) ||
-        category.contains(query) ||
-        description.contains(query);
-  }).toList();
+      return name.startsWith(query) ||
+          name.contains(query) ||
+          category.startsWith(query) ||
+          category.contains(query) ||
+          description.contains(query);
+    }).toList();
 
-  filtered.sort((a, b) {
-    final aName = _normalizeArabic(a.name);
-    final bName = _normalizeArabic(b.name);
+    filtered.sort((a, b) {
+      final aName = _normalizeArabic(a.name);
+      final bName = _normalizeArabic(b.name);
 
-    final aStarts = aName.startsWith(query);
-    final bStarts = bName.startsWith(query);
+      final aStarts = aName.startsWith(query);
+      final bStarts = bName.startsWith(query);
 
-    if (aStarts && !bStarts) return -1;
-    if (!aStarts && bStarts) return 1;
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
 
-    return aName.compareTo(bName);
-  });
+      return aName.compareTo(bName);
+    });
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  setState(() {
-    _items = filtered;
-  });
-}
+    setState(() {
+      _items = filtered;
+    });
+  }
 
-String _normalizeArabic(String value) {
-  return value
-      .trim()
-      .toLowerCase()
-      .replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '')
-      .replaceAll('أ', 'ا')
-      .replaceAll('إ', 'ا')
-      .replaceAll('آ', 'ا')
-      .replaceAll('ى', 'ي')
-      .replaceAll('ؤ', 'و')
-      .replaceAll('ئ', 'ي')
-      .replaceAll('ـ', '');
-}
+  String _normalizeArabic(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '')
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('آ', 'ا')
+        .replaceAll('ى', 'ي')
+        .replaceAll('ؤ', 'و')
+        .replaceAll('ئ', 'ي')
+        .replaceAll('ـ', '');
+  }
 
   Future<void> _openCreate() async {
     final changed = await Navigator.of(context).push<bool>(
@@ -200,18 +188,14 @@ String _normalizeArabic(String value) {
     final background = dark
         ? AppColors.darkBackground
         : AppColors.lightBackground;
-    final surface = dark
-        ? AppColors.darkSurface
-        : AppColors.lightSurface;
+    final surface = dark ? AppColors.darkSurface : AppColors.lightSurface;
     final primary = dark
         ? AppColors.darkPrimaryText
         : AppColors.lightPrimaryText;
     final secondary = dark
         ? AppColors.darkSecondaryText
         : AppColors.lightSecondaryText;
-    final border = dark
-        ? AppColors.darkBorder
-        : AppColors.lightBorder;
+    final border = dark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return Scaffold(
       backgroundColor: background,
@@ -222,10 +206,7 @@ String _normalizeArabic(String value) {
         scrolledUnderElevation: 0,
         title: const Text(
           'الخدمات والبكجات',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
         ),
       ),
       body: Directionality(
@@ -234,42 +215,27 @@ String _normalizeArabic(String value) {
           color: AppColors.gold,
           onRefresh: _load,
           child: ListView(
-            physics:
-                const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
-              16,
-              10,
-              16,
-              92,
-            ),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 92),
             children: [
               TextField(
                 controller: _search,
                 onChanged: _onSearch,
                 decoration: InputDecoration(
-                  hintText:
-                      'ابحثي باسم الخدمة أو التصنيف',
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                  ),
+                  hintText: 'ابحثي باسم الخدمة أو التصنيف',
+                  prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_search.text.isNotEmpty)
                         IconButton(
-                         onPressed: () {
-  _search.clear();
-  _applySearch();
-},
-                          icon: const Icon(
-                            Icons.close_rounded,
-                          ),
+                          onPressed: () {
+                            _search.clear();
+                            _applySearch();
+                          },
+                          icon: const Icon(Icons.close_rounded),
                         ),
-                      Container(
-                        width: 1,
-                        height: 28,
-                        color: border,
-                      ),
+                      Container(width: 1, height: 28, color: border),
                       PopupMenuButton<TypeFilter>(
                         initialValue: _type,
                         onSelected: (value) {
@@ -293,18 +259,15 @@ String _normalizeArabic(String value) {
                           ),
                         ],
                         child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: 10,
                             vertical: 12,
                           ),
                           child: Text(
                             switch (_type) {
                               TypeFilter.all => 'الكل',
-                              TypeFilter.service =>
-                                'الخدمات',
-                              TypeFilter.package =>
-                                'البكجات',
+                              TypeFilter.service => 'الخدمات',
+                              TypeFilter.package => 'البكجات',
                             },
                             style: TextStyle(
                               color: primary,
@@ -319,20 +282,15 @@ String _normalizeArabic(String value) {
                   filled: true,
                   fillColor: surface,
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: border,
-                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: border),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(16),
                     borderSide: const BorderSide(
                       color: AppColors.gold,
                       width: 1.4,
@@ -370,8 +328,7 @@ String _normalizeArabic(String value) {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          _department ==
-                                  DepartmentFilter.salon
+                          _department == DepartmentFilter.salon
                               ? 'الصالون'
                               : 'العيادة',
                           style: TextStyle(
@@ -380,8 +337,7 @@ String _normalizeArabic(String value) {
                           ),
                         ),
                         Icon(
-                          Icons
-                              .keyboard_arrow_down_rounded,
+                          Icons.keyboard_arrow_down_rounded,
                           color: secondary,
                         ),
                       ],
@@ -403,9 +359,7 @@ String _normalizeArabic(String value) {
                 const Padding(
                   padding: EdgeInsets.only(top: 90),
                   child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.gold,
-                    ),
+                    child: CircularProgressIndicator(color: AppColors.gold),
                   ),
                 )
               else if (_error != null)
@@ -415,24 +369,18 @@ String _normalizeArabic(String value) {
               else
                 ..._items.map(
                   (item) => Padding(
-                    padding:
-                        const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.only(bottom: 10),
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: () => _openDetails(item),
-                        borderRadius:
-                            BorderRadius.circular(17),
+                        borderRadius: BorderRadius.circular(17),
                         child: Container(
-                          padding:
-                              const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: surface,
-                            borderRadius:
-                                BorderRadius.circular(17),
-                            border: Border.all(
-                              color: border,
-                            ),
+                            borderRadius: BorderRadius.circular(17),
+                            border: Border.all(color: border),
                           ),
                           child: Row(
                             children: [
@@ -441,26 +389,20 @@ String _normalizeArabic(String value) {
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .stretch,
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     Row(
                                       children: [
                                         Expanded(
                                           child: Text(
                                             item.name,
-                                            textAlign:
-                                                TextAlign.right,
+                                            textAlign: TextAlign.right,
                                             maxLines: 1,
-                                            overflow:
-                                                TextOverflow
-                                                    .ellipsis,
+                                            overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               color: primary,
                                               fontSize: 15,
-                                              fontWeight:
-                                                  FontWeight
-                                                      .w800,
+                                              fontWeight: FontWeight.w800,
                                             ),
                                           ),
                                         ),
@@ -470,8 +412,7 @@ String _normalizeArabic(String value) {
                                     const SizedBox(height: 5),
                                     Text(
                                       item.categoryName,
-                                      textAlign:
-                                          TextAlign.right,
+                                      textAlign: TextAlign.right,
                                       style: TextStyle(
                                         color: secondary,
                                         fontSize: 12,
@@ -481,16 +422,11 @@ String _normalizeArabic(String value) {
                                     Row(
                                       children: [
                                         Text(
-                                          item.isPackage
-                                              ? 'بكج'
-                                              : 'خدمة',
+                                          item.isPackage ? 'بكج' : 'خدمة',
                                           style: const TextStyle(
-                                            color:
-                                                AppColors.gold,
+                                            color: AppColors.gold,
                                             fontSize: 11,
-                                            fontWeight:
-                                                FontWeight
-                                                    .w800,
+                                            fontWeight: FontWeight.w800,
                                           ),
                                         ),
                                         const Spacer(),
@@ -499,9 +435,7 @@ String _normalizeArabic(String value) {
                                           style: TextStyle(
                                             color: primary,
                                             fontSize: 12,
-                                            fontWeight:
-                                                FontWeight
-                                                    .w800,
+                                            fontWeight: FontWeight.w800,
                                           ),
                                         ),
                                       ],
@@ -524,8 +458,7 @@ String _normalizeArabic(String value) {
           ),
         ),
       ),
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         onPressed: _openCreate,
         backgroundColor: AppColors.gold,
@@ -543,10 +476,7 @@ String _normalizeArabic(String value) {
     );
   }
 
-  Widget _image(
-    CatalogItem item,
-    Color surface,
-  ) {
+  Widget _image(CatalogItem item, Color surface) {
     final image = item.mainImage;
 
     if (image == null || image.url.isEmpty) {
@@ -555,14 +485,11 @@ String _normalizeArabic(String value) {
         height: 66,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color:
-              AppColors.gold.withValues(alpha: 0.12),
+          color: AppColors.gold.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Icon(
-          item.isPackage
-              ? Icons.inventory_2_outlined
-              : Icons.spa_outlined,
+          item.isPackage ? Icons.inventory_2_outlined : Icons.spa_outlined,
           color: AppColors.gold,
           size: 27,
         ),
@@ -594,23 +521,17 @@ String _normalizeArabic(String value) {
 
   Widget _status(bool active) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 7,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: (active
-                ? AppColors.success
-                : AppColors.error)
-            .withValues(alpha: 0.12),
+        color: (active ? AppColors.success : AppColors.error).withValues(
+          alpha: 0.12,
+        ),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(
         active ? 'نشط' : 'غير نشط',
         style: TextStyle(
-          color: active
-              ? AppColors.success
-              : AppColors.error,
+          color: active ? AppColors.success : AppColors.error,
           fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
@@ -639,34 +560,21 @@ String _normalizeArabic(String value) {
     );
   }
 
-  Widget _emptyState(
-    Color primary,
-    Color secondary,
-  ) {
+  Widget _emptyState(Color primary, Color secondary) {
     return Padding(
       padding: const EdgeInsets.only(top: 80),
       child: Column(
         children: [
-          const Icon(
-            Icons.spa_outlined,
-            color: AppColors.gold,
-            size: 38,
-          ),
+          const Icon(Icons.spa_outlined, color: AppColors.gold, size: 38),
           const SizedBox(height: 10),
           Text(
             'لا توجد نتائج',
-            style: TextStyle(
-              color: primary,
-              fontWeight: FontWeight.w800,
-            ),
+            style: TextStyle(color: primary, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 5),
           Text(
             'غيّري البحث أو الفلاتر.',
-            style: TextStyle(
-              color: secondary,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: secondary, fontSize: 12),
           ),
         ],
       ),
@@ -674,8 +582,7 @@ String _normalizeArabic(String value) {
   }
 
   String _price(CatalogItem item) {
-    if (item.priceType == 'inspection' ||
-        item.price == null) {
+    if (item.priceType == 'inspection' || item.price == null) {
       return 'بعد المعاينة';
     }
 

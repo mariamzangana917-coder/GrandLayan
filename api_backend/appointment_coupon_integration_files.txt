@@ -1,0 +1,3621 @@
+﻿APPOINTMENT COUPON INTEGRATION FILES
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Controllers\Api\Admin\AdminAppointmentController.php ================
+
+<?php
+
+namespace App\Http\Controllers\Api\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Admin\CancelAdminAppointmentRequest;
+use App\Http\Requests\Api\Admin\ConfirmAdminAppointmentRequest;
+use App\Http\Requests\Api\Admin\IndexAdminAppointmentRequest;
+use App\Http\Requests\Api\Admin\UpdateAdminAppointmentRequest;
+use App\Http\Requests\Api\Admin\UpdateAdminAppointmentStatusRequest;
+use App\Http\Resources\AdminAppointmentResource;
+use App\Http\Resources\AppointmentResource;
+use App\Models\Appointment;
+use App\Models\Department;
+use App\Services\Appointments\ManageAppointmentService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+
+class AdminAppointmentController extends Controller
+{
+    public function index(
+        IndexAdminAppointmentRequest $request
+    ): AnonymousResourceCollection {
+        $validated = $request->validated();
+
+        $appointments = Appointment::query()
+            ->with([
+                'customer',
+                'department',
+                'items.services',
+            ])
+            ->when(
+                $validated['search'] ?? null,
+                function (Builder $query, string $search): void {
+                    $search = trim($search);
+
+                    $query->where(function (Builder $query) use ($search): void {
+                        $query
+                            ->where('reference', 'ilike', "%{$search}%")
+                            ->orWhereHas(
+                                'customer',
+                                function (Builder $customerQuery) use ($search): void {
+                                    $customerQuery
+                                        ->where('name', 'ilike', "%{$search}%")
+                                        ->orWhere('phone', 'ilike', "%{$search}%")
+                                        ->orWhere('email', 'ilike', "%{$search}%");
+                                }
+                            );
+                    });
+                }
+            )
+            ->when(
+                $validated['status'] ?? null,
+                fn (Builder $query, string $status) => $query->where('status', $status)
+            )
+            ->when(
+                $validated['department_id'] ?? null,
+                fn (Builder $query, int $departmentId) => $query->where('department_id', $departmentId)
+            )
+            ->when(
+                $validated['date'] ?? null,
+                fn (Builder $query, string $date) => $query->whereDate('requested_start_at', $date)
+            )
+            ->when(
+                $validated['from_date'] ?? null,
+                fn (Builder $query, string $date) => $query->whereDate('requested_start_at', '>=', $date)
+            )
+            ->when(
+                $validated['to_date'] ?? null,
+                fn (Builder $query, string $date) => $query->whereDate('requested_start_at', '<=', $date)
+            )
+            ->orderByRaw(
+                "CASE
+                    WHEN status = 'pending' THEN 1
+                    WHEN status = 'confirmed' THEN 2
+                    WHEN status = 'in_progress' THEN 3
+                    WHEN status = 'completed' THEN 4
+                    WHEN status = 'cancelled' THEN 5
+                    WHEN status = 'no_show' THEN 6
+                    ELSE 7
+                END"
+            )
+            ->orderBy('requested_start_at')
+            ->paginate($validated['per_page'] ?? 15)
+            ->withQueryString();
+
+        return AppointmentResource::collection($appointments)
+            ->additional([
+                'filters' => [
+                    'departments' => Department::query()
+                        ->orderBy('sort_order')
+                        ->get(['id', 'code', 'name']),
+                ],
+            ]);
+    }
+
+    public function show(
+        Appointment $appointment
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $this->load($appointment)
+        );
+    }
+
+    public function update(
+        UpdateAdminAppointmentRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->update($appointment, $request->validated())
+        );
+    }
+
+    public function confirm(
+        ConfirmAdminAppointmentRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->confirm($appointment, $request->validated())
+        );
+    }
+
+    public function start(
+        UpdateAdminAppointmentStatusRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->start($appointment, $request->validated())
+        );
+    }
+
+    public function complete(
+        UpdateAdminAppointmentStatusRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->complete($appointment, $request->validated())
+        );
+    }
+
+    public function cancel(
+        CancelAdminAppointmentRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->cancel($appointment, $request->validated())
+        );
+    }
+
+    public function noShow(
+        UpdateAdminAppointmentStatusRequest $request,
+        Appointment $appointment,
+        ManageAppointmentService $service
+    ): AdminAppointmentResource {
+        return new AdminAppointmentResource(
+            $service->markNoShow($appointment, $request->validated())
+        );
+    }
+
+    private function load(Appointment $appointment): Appointment
+    {
+        return $appointment->load([
+            'customer',
+            'department',
+            'items.services',
+        ]);
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Controllers\Api\Appointments\AppointmentController.php ================
+
+<?php
+
+namespace App\Http\Controllers\Api\Appointments;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Appointments\CancelCustomerAppointmentRequest;
+use App\Http\Requests\Api\Appointments\StoreAppointmentRequest;
+use App\Http\Resources\AppointmentResource;
+use App\Models\Appointment;
+use App\Services\Appointments\CreateAppointmentService;
+use App\Services\Appointments\ManageAppointmentService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+
+class AppointmentController extends Controller
+{
+    /**
+     * Display the authenticated customer's appointments.
+     */
+    public function index(
+        Request $request
+    ): AnonymousResourceCollection {
+        $appointments = Appointment::query()
+            ->where('customer_id', $request->user()->id)
+            ->with([
+                'customer',
+                'department',
+                'items.services',
+            ])
+            ->orderByRaw(
+                'COALESCE(confirmed_start_at, requested_start_at) DESC'
+            )
+            ->paginate(15)
+            ->withQueryString();
+
+        return AppointmentResource::collection($appointments);
+    }
+
+    /**
+     * Store a newly created customer appointment.
+     */
+    public function store(
+        StoreAppointmentRequest $request,
+        CreateAppointmentService $service
+    ): JsonResponse {
+        $appointment = $service->create(
+            customer: $request->user(),
+            data: $request->validated(),
+        );
+
+        return response()->json([
+            'message' => 'ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø·Ù„Ø¨ Ø§Ù„Ø­Ø¬Ø² Ø¨Ù†Ø¬Ø§Ø­.',
+            'data' => new AppointmentResource($appointment),
+        ], 201);
+    }
+
+    /**
+     * Display one appointment owned by the authenticated customer.
+     */
+    public function show(
+        Request $request,
+        int $appointment
+    ): AppointmentResource {
+        $customerAppointment = $this->findCustomerAppointment(
+            customerId: (int) $request->user()->id,
+            appointmentId: $appointment,
+        );
+
+        return new AppointmentResource($customerAppointment);
+    }
+
+    /**
+     * Cancel one appointment owned by the authenticated customer.
+     */
+    public function cancel(
+        CancelCustomerAppointmentRequest $request,
+        int $appointment,
+        ManageAppointmentService $service
+    ): JsonResponse {
+        $customerAppointment = $this->findCustomerAppointment(
+            customerId: (int) $request->user()->id,
+            appointmentId: $appointment,
+        );
+
+        $cancelledAppointment = $service->cancelByCustomer(
+            appointment: $customerAppointment,
+            reason: $request->validated('reason'),
+        );
+
+        return response()->json([
+            'message' => 'ØªÙ… Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ù…ÙˆØ¹Ø¯ Ø¨Ù†Ø¬Ø§Ø­.',
+            'data' => new AppointmentResource($cancelledAppointment),
+        ]);
+    }
+
+    /**
+     * Find an appointment belonging only to the current customer.
+     *
+     * Using a customer-scoped query prevents IDOR attacks.
+     */
+    private function findCustomerAppointment(
+        int $customerId,
+        int $appointmentId
+    ): Appointment {
+        return Appointment::query()
+            ->where('customer_id', $customerId)
+            ->with([
+                'customer',
+                'department',
+                'items.services',
+            ])
+            ->findOrFail($appointmentId);
+    }
+}
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Requests\Api\Admin\CancelAdminAppointmentRequest.php ================
+
+<?php
+
+namespace App\Http\Requests\Api\Admin;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class CancelAdminAppointmentRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->hasRole('manager') === true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'reason' => ['required', 'string', 'max:1000'],
+            'admin_notes' => ['nullable', 'string', 'max:2000'],
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Requests\Api\Admin\ConfirmAdminAppointmentRequest.php ================
+
+<?php
+
+namespace App\Http\Requests\Api\Admin;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class ConfirmAdminAppointmentRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->hasRole('manager') === true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'confirmed_start_at' => [
+                'nullable',
+                'date',
+                'after:now',
+            ],
+            'admin_notes' => ['nullable', 'string', 'max:2000'],
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Requests\Api\Admin\IndexAdminAppointmentRequest.php ================
+
+<?php
+
+namespace App\Http\Requests\Api\Admin;
+
+use App\Models\Appointment;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class IndexAdminAppointmentRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->hasRole('manager') === true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'search' => ['nullable', 'string', 'max:150'],
+            'status' => [
+                'nullable',
+                'string',
+                Rule::in(Appointment::STATUSES),
+            ],
+            'department_id' => [
+                'nullable',
+                'integer',
+                'exists:departments,id',
+            ],
+            'date' => ['nullable', 'date_format:Y-m-d'],
+            'from_date' => ['nullable', 'date_format:Y-m-d'],
+            'to_date' => [
+                'nullable',
+                'date_format:Y-m-d',
+                'after_or_equal:from_date',
+            ],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Requests\Api\Admin\UpdateAdminAppointmentRequest.php ================
+
+<?php
+
+namespace App\Http\Requests\Api\Admin;
+
+use App\Models\Appointment;
+use Illuminate\Foundation\Http\FormRequest;
+
+class UpdateAdminAppointmentRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        $appointment = $this->route('appointment');
+
+        return $this->user()?->hasRole('manager') === true
+            && $appointment instanceof Appointment
+            && $appointment->canBeEdited();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'requested_start_at' => [
+                'sometimes',
+                'required',
+                'date',
+                'after:now',
+            ],
+            'confirmed_start_at' => [
+                'sometimes',
+                'nullable',
+                'date',
+                'after:now',
+            ],
+            'admin_notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Requests\Api\Admin\UpdateAdminAppointmentStatusRequest.php ================
+
+<?php
+
+namespace App\Http\Requests\Api\Admin;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class UpdateAdminAppointmentStatusRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->hasRole('manager') === true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'admin_notes' => ['nullable', 'string', 'max:2000'],
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Requests\Api\Appointments\CancelCustomerAppointmentRequest.php ================
+
+<?php
+
+namespace App\Http\Requests\Api\Appointments;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class CancelCustomerAppointmentRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        $user = $this->user();
+
+        return $user !== null
+            && (bool) $user->is_active
+            && $user->hasRole('customer');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'reason' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'reason.string' => 'Ø³Ø¨Ø¨ Ø§Ù„Ø¥Ù„ØºØ§Ø¡ ØºÙŠØ± ØµØ§Ù„Ø­.',
+            'reason.max' => 'Ø³Ø¨Ø¨ Ø§Ù„Ø¥Ù„ØºØ§Ø¡ Ø·ÙˆÙŠÙ„ Ø¬Ø¯Ù‹Ø§.',
+        ];
+    }
+}
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Requests\Api\Appointments\StoreAppointmentRequest.php ================
+
+<?php
+
+namespace App\Http\Requests\Api\Appointments;
+
+use App\Models\CatalogItem;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
+
+class StoreAppointmentRequest extends FormRequest
+{
+    /**
+     * Only an active customer may create an appointment.
+     */
+    public function authorize(): bool
+    {
+        $user = $this->user();
+
+        return $user !== null
+            && (bool) $user->is_active
+            && $user->hasRole('customer');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'department_id' => [
+                'required',
+                'integer',
+                Rule::exists('departments', 'id')
+                    ->where(
+                        fn ($query) => $query->where(
+                            'is_active',
+                            true
+                        )
+                    ),
+            ],
+
+            'requested_start_at' => [
+                'required',
+                'date',
+                'after:now',
+            ],
+
+            'customer_notes' => [
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+
+            'items' => [
+                'required',
+                'array',
+                'min:1',
+                'max:20',
+            ],
+
+            'items.*.catalog_item_id' => [
+                'required',
+                'integer',
+                'distinct:strict',
+                Rule::exists('catalog_items', 'id')
+                    ->where(
+                        fn ($query) => $query
+                            ->where('is_active', true)
+                            ->whereNull('deleted_at')
+                    ),
+            ],
+
+            'items.*.quantity' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:20',
+            ],
+        ];
+    }
+
+    /**
+     * Perform booking-specific validation after basic validation.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $departmentId = (int) $this->input('department_id');
+            $submittedItems = $this->input('items', []);
+
+            foreach ($submittedItems as $submittedItem) {
+                $catalogItem = CatalogItem::query()
+                    ->with('category')
+                    ->find((int) $submittedItem['catalog_item_id']);
+
+                if ($catalogItem === null) {
+                    continue;
+                }
+
+                if (
+                    (int) $catalogItem->category->department_id
+                    !== $departmentId
+                ) {
+                    $validator->errors()->add(
+                        'items',
+                        'ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ø¬Ù…ÙŠØ¹ Ø§Ù„Ø®Ø¯Ù…Ø§Øª ÙˆØ§Ù„Ø¨ÙƒØ¬Ø§Øª Ù…Ù† Ø§Ù„Ù‚Ø³Ù… Ø§Ù„Ù…Ø­Ø¯Ø¯ Ù†ÙØ³Ù‡.'
+                    );
+
+                    return;
+                }
+
+                if (
+                    $catalogItem->isService()
+                    && $catalogItem->duration_minutes === null
+                ) {
+                    $validator->errors()->add(
+                        'items',
+                        'Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø­Ø¬Ø² Ø®Ø¯Ù…Ø© Ù„Ø§ ØªØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ Ù…Ø¯Ø© Ø²Ù…Ù†ÙŠØ©.'
+                    );
+
+                    return;
+                }
+
+                if ($catalogItem->isPackage()) {
+                    $packageServices = DB::table('package_items')
+                        ->join(
+                            'catalog_items',
+                            'catalog_items.id',
+                            '=',
+                            'package_items.service_id'
+                        )
+                        ->join(
+                            'categories',
+                            'categories.id',
+                            '=',
+                            'catalog_items.category_id'
+                        )
+                        ->where(
+                            'package_items.package_id',
+                            $catalogItem->id
+                        )
+                        ->select([
+                            'catalog_items.id',
+                            'catalog_items.type',
+                            'catalog_items.is_active',
+                            'catalog_items.deleted_at',
+                            'catalog_items.duration_minutes',
+                            'categories.department_id',
+                        ])
+                        ->get();
+
+                    if ($packageServices->isEmpty()) {
+                        $validator->errors()->add(
+                            'items',
+                            'Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø­Ø¬Ø² Ø¨Ø§ÙƒØ¬ Ù„Ø§ ÙŠØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ Ø®Ø¯Ù…Ø§Øª.'
+                        );
+
+                        return;
+                    }
+
+                    foreach ($packageServices as $service) {
+                        $isInvalidService =
+                            $service->type !== CatalogItem::TYPE_SERVICE
+                            || ! (bool) $service->is_active
+                            || $service->deleted_at !== null
+                            || $service->duration_minutes === null
+                            || (int) $service->duration_minutes <= 0
+                            || (int) $service->department_id
+                                !== $departmentId;
+
+                        if ($isInvalidService) {
+                            $validator->errors()->add(
+                                'items',
+                                'ÙŠØ­ØªÙˆÙŠ Ø§Ù„Ø¨Ø§ÙƒØ¬ Ø¹Ù„Ù‰ Ø®Ø¯Ù…Ø© ØºÙŠØ± Ù…ØªØ§Ø­Ø© Ø£Ùˆ ØºÙŠØ± ØµØ§Ù„Ø­Ø© Ù„Ù„Ø­Ø¬Ø².'
+                            );
+
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'department_id.required' => 'Ø§Ù„Ù‚Ø³Ù… Ù…Ø·Ù„ÙˆØ¨.',
+            'department_id.exists' => 'Ø§Ù„Ù‚Ø³Ù… ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯ Ø£Ùˆ ØºÙŠØ± ÙØ¹Ø§Ù„.',
+
+            'requested_start_at.required' => 'ØªØ§Ø±ÙŠØ® ÙˆÙˆÙ‚Øª Ø§Ù„Ø­Ø¬Ø² Ù…Ø·Ù„ÙˆØ¨Ø§Ù†.',
+            'requested_start_at.date' => 'ØªØ§Ø±ÙŠØ® ÙˆÙˆÙ‚Øª Ø§Ù„Ø­Ø¬Ø² ØºÙŠØ± ØµØ§Ù„Ø­ÙŠÙ†.',
+            'requested_start_at.after' => 'ÙŠØ¬Ø¨ Ø§Ø®ØªÙŠØ§Ø± Ù…ÙˆØ¹Ø¯ ÙÙŠ Ø§Ù„Ù…Ø³ØªÙ‚Ø¨Ù„.',
+
+            'customer_notes.max' => 'Ù…Ù„Ø§Ø­Ø¸Ø§Øª Ø§Ù„Ø­Ø¬Ø² Ø·ÙˆÙŠÙ„Ø© Ø¬Ø¯Ù‹Ø§.',
+
+            'items.required' => 'ÙŠØ¬Ø¨ Ø§Ø®ØªÙŠØ§Ø± Ø®Ø¯Ù…Ø© Ø£Ùˆ Ø¨Ø§ÙƒØ¬ ÙˆØ§Ø­Ø¯ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„.',
+            'items.array' => 'Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø®Ø¯Ù…Ø§Øª ØºÙŠØ± ØµØ§Ù„Ø­Ø©.',
+            'items.min' => 'ÙŠØ¬Ø¨ Ø§Ø®ØªÙŠØ§Ø± Ø®Ø¯Ù…Ø© Ø£Ùˆ Ø¨Ø§ÙƒØ¬ ÙˆØ§Ø­Ø¯ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„.',
+            'items.max' => 'Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ø®ØªÙŠØ§Ø± Ø£ÙƒØ«Ø± Ù…Ù† 20 Ø¹Ù†ØµØ±Ù‹Ø§ ÙÙŠ Ø§Ù„Ø­Ø¬Ø².',
+
+            'items.*.catalog_item_id.required' => 'Ø§Ù„Ø®Ø¯Ù…Ø© Ø£Ùˆ Ø§Ù„Ø¨Ø§ÙƒØ¬ Ù…Ø·Ù„ÙˆØ¨.',
+            'items.*.catalog_item_id.exists' => 'Ø§Ù„Ø®Ø¯Ù…Ø© Ø£Ùˆ Ø§Ù„Ø¨Ø§ÙƒØ¬ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯ Ø£Ùˆ ØºÙŠØ± ÙØ¹Ø§Ù„.',
+            'items.*.catalog_item_id.distinct' => 'Ù„Ø§ ÙŠÙ…ÙƒÙ† ØªÙƒØ±Ø§Ø± Ø§Ù„Ø®Ø¯Ù…Ø© Ø£Ùˆ Ø§Ù„Ø¨Ø§ÙƒØ¬ Ø¯Ø§Ø®Ù„ Ø§Ù„Ø­Ø¬Ø².',
+
+            'items.*.quantity.required' => 'Ø§Ù„ÙƒÙ…ÙŠØ© Ù…Ø·Ù„ÙˆØ¨Ø©.',
+            'items.*.quantity.integer' => 'Ø§Ù„ÙƒÙ…ÙŠØ© ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ø±Ù‚Ù…Ù‹Ø§ ØµØ­ÙŠØ­Ù‹Ø§.',
+            'items.*.quantity.min' => 'Ø§Ù„ÙƒÙ…ÙŠØ© ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ø£ÙƒØ¨Ø± Ù…Ù† ØµÙØ±.',
+            'items.*.quantity.max' => 'Ø§Ù„ÙƒÙ…ÙŠØ© Ø§Ù„Ù…Ø³Ù…ÙˆØ­Ø© Ø¨Ø­Ø¯ Ø£Ù‚ØµÙ‰ 20.',
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Resources\AdminAppointmentResource.php ================
+
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class AdminAppointmentResource extends JsonResource
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'reference' => $this->reference,
+            'status' => $this->status,
+
+            'customer' => [
+                'id' => $this->customer->id,
+                'name' => $this->customer->name,
+                'phone' => $this->customer->phone,
+                'email' => $this->customer->email,
+                'is_active' => $this->customer->is_active,
+            ],
+
+            'department' => [
+                'id' => $this->department->id,
+                'code' => $this->department->code,
+                'name' => $this->department->name,
+            ],
+
+            'requested_start_at' => $this->requested_start_at?->toISOString(),
+
+            'confirmed_start_at' => $this->confirmed_start_at?->toISOString(),
+
+            'customer_notes' => $this->customer_notes,
+            'admin_notes' => $this->admin_notes,
+
+            'cancelled_by' => $this->cancelled_by,
+            'cancellation_reason' => $this->cancellation_reason,
+
+            'cancelled_at' => $this->cancelled_at?->toISOString(),
+
+            'completed_at' => $this->completed_at?->toISOString(),
+
+            'no_show_at' => $this->no_show_at?->toISOString(),
+
+            'items' => AppointmentItemResource::collection(
+                $this->whenLoaded('items')
+            ),
+
+            'created_at' => $this->created_at?->toISOString(),
+
+            'updated_at' => $this->updated_at?->toISOString(),
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Resources\AppointmentItemResource.php ================
+
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class AppointmentItemResource extends JsonResource
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+
+            'catalog_item_id' => $this->catalog_item_id,
+            'item_type' => $this->item_type,
+            'item_name' => $this->item_name,
+
+            'price_type' => $this->price_type,
+            'unit_price' => $this->unit_price,
+
+            'quantity' => (int) $this->quantity,
+
+            'duration_minutes' => $this->duration_minutes !== null
+                    ? (int) $this->duration_minutes
+                    : null,
+
+            'services' => AppointmentServiceResource::collection(
+                $this->whenLoaded('services')
+            ),
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Resources\AppointmentResource.php ================
+
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class AppointmentResource extends JsonResource
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'reference' => $this->reference,
+
+            'customer' => [
+                'id' => $this->customer->id,
+                'name' => $this->customer->name,
+                'phone' => $this->customer->phone,
+            ],
+
+            'department' => [
+                'id' => $this->department->id,
+                'code' => $this->department->code,
+                'name' => $this->department->name,
+            ],
+
+            'status' => $this->status,
+
+            'requested_start_at' => $this->requested_start_at?->toISOString(),
+
+            'confirmed_start_at' => $this->confirmed_start_at?->toISOString(),
+
+            'customer_notes' => $this->customer_notes,
+
+            'items' => AppointmentItemResource::collection(
+                $this->whenLoaded('items')
+            ),
+
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Http\Resources\AppointmentServiceResource.php ================
+
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class AppointmentServiceResource extends JsonResource
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+
+            'service_id' => $this->service_id,
+            'service_name' => $this->service_name,
+
+            'quantity' => (int) $this->quantity,
+            'duration_minutes' => (int) $this->duration_minutes,
+
+            'unit_price' => $this->unit_price,
+
+            'scheduled_start_at' => $this->scheduled_start_at?->toISOString(),
+
+            'scheduled_end_at' => $this->scheduled_end_at?->toISOString(),
+
+            'notes' => $this->notes,
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Models\Appointment.php ================
+
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Appointment extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_CONFIRMED = 'confirmed';
+
+    public const STATUS_IN_PROGRESS = 'in_progress';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
+    public const STATUS_NO_SHOW = 'no_show';
+
+    public const STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_CONFIRMED,
+        self::STATUS_IN_PROGRESS,
+        self::STATUS_COMPLETED,
+        self::STATUS_CANCELLED,
+        self::STATUS_NO_SHOW,
+    ];
+
+    private const TRANSITIONS = [
+        self::STATUS_PENDING => [
+            self::STATUS_CONFIRMED,
+            self::STATUS_CANCELLED,
+        ],
+        self::STATUS_CONFIRMED => [
+            self::STATUS_IN_PROGRESS,
+            self::STATUS_CANCELLED,
+            self::STATUS_NO_SHOW,
+        ],
+        self::STATUS_IN_PROGRESS => [
+            self::STATUS_COMPLETED,
+        ],
+        self::STATUS_COMPLETED => [],
+        self::STATUS_CANCELLED => [],
+        self::STATUS_NO_SHOW => [],
+    ];
+
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'reference',
+        'customer_id',
+        'department_id',
+        'status',
+        'requested_start_at',
+        'confirmed_start_at',
+        'customer_notes',
+        'admin_notes',
+        'cancelled_by',
+        'cancellation_reason',
+        'cancelled_at',
+        'completed_at',
+        'no_show_at',
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'customer_id' => 'integer',
+            'department_id' => 'integer',
+
+            'requested_start_at' => 'datetime',
+            'confirmed_start_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'completed_at' => 'datetime',
+            'no_show_at' => 'datetime',
+        ];
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'customer_id'
+        );
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(AppointmentItem::class)
+            ->orderBy('id');
+    }
+
+    public function canBeEdited(): bool
+    {
+        return in_array(
+            $this->status,
+            [self::STATUS_PENDING, self::STATUS_CONFIRMED],
+            true
+        );
+    }
+
+    public function canTransitionTo(string $status): bool
+    {
+        return in_array(
+            $status,
+            self::TRANSITIONS[$this->status] ?? [],
+            true
+        );
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Models\AppointmentItem.php ================
+
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class AppointmentItem extends Model
+{
+    use HasFactory;
+
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'appointment_id',
+        'catalog_item_id',
+        'item_type',
+        'item_name',
+        'price_type',
+        'unit_price',
+        'quantity',
+        'duration_minutes',
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'appointment_id' => 'integer',
+            'catalog_item_id' => 'integer',
+            'unit_price' => 'decimal:2',
+            'quantity' => 'integer',
+            'duration_minutes' => 'integer',
+        ];
+    }
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
+    }
+
+    public function catalogItem(): BelongsTo
+    {
+        return $this->belongsTo(CatalogItem::class);
+    }
+
+    public function services(): HasMany
+    {
+        return $this->hasMany(AppointmentService::class)
+            ->orderBy('id');
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Models\AppointmentService.php ================
+
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class AppointmentService extends Model
+{
+    use HasFactory;
+
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'appointment_item_id',
+        'service_id',
+        'service_name',
+        'quantity',
+        'duration_minutes',
+        'unit_price',
+        'scheduled_start_at',
+        'scheduled_end_at',
+        'notes',
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'appointment_item_id' => 'integer',
+            'service_id' => 'integer',
+            'quantity' => 'integer',
+            'duration_minutes' => 'integer',
+            'unit_price' => 'decimal:2',
+            'scheduled_start_at' => 'datetime',
+            'scheduled_end_at' => 'datetime',
+        ];
+    }
+
+    public function appointmentItem(): BelongsTo
+    {
+        return $this->belongsTo(AppointmentItem::class);
+    }
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(
+            CatalogItem::class,
+            'service_id'
+        );
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Services\Appointments\CreateAppointmentService.php ================
+
+<?php
+
+namespace App\Services\Appointments;
+
+use App\Models\Appointment;
+use App\Models\CatalogItem;
+use App\Models\User;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+class CreateAppointmentService
+{
+    /**
+     * Create a complete appointment with immutable snapshots.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function create(User $customer, array $data): Appointment
+    {
+        return DB::transaction(function () use (
+            $customer,
+            $data
+        ): Appointment {
+            $catalogItemIds = collect($data['items'])
+                ->pluck('catalog_item_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+
+            $catalogItems = CatalogItem::query()
+                ->with([
+                    'category',
+                    'packageServices.category',
+                ])
+                ->whereIn('id', $catalogItemIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            $appointment = Appointment::query()->create([
+                'reference' => $this->generateUniqueReference(),
+                'customer_id' => $customer->id,
+                'department_id' => (int) $data['department_id'],
+                'status' => Appointment::STATUS_PENDING,
+                'requested_start_at' => $data['requested_start_at'],
+                'confirmed_start_at' => null,
+                'customer_notes' => $data['customer_notes'] ?? null,
+                'admin_notes' => null,
+            ]);
+
+            foreach ($data['items'] as $submittedItem) {
+                $catalogItem = $catalogItems->get(
+                    (int) $submittedItem['catalog_item_id']
+                );
+
+                /*
+                 * The request validation guarantees this item exists.
+                 * This additional check protects against unexpected races.
+                 */
+                if (! $catalogItem instanceof CatalogItem) {
+                    abort(
+                        422,
+                        'Ø¥Ø­Ø¯Ù‰ Ø§Ù„Ø®Ø¯Ù…Ø§Øª Ù„Ù… ØªØ¹Ø¯ Ù…ØªØ§Ø­Ø© Ù„Ù„Ø­Ø¬Ø².'
+                    );
+                }
+
+                $quantity = (int) $submittedItem['quantity'];
+
+                $appointmentItem = $appointment->items()->create([
+                    'catalog_item_id' => $catalogItem->id,
+                    'item_type' => $catalogItem->type,
+                    'item_name' => $catalogItem->name,
+                    'price_type' => $catalogItem->price_type,
+                    'unit_price' => $catalogItem->price,
+                    'quantity' => $quantity,
+                    'duration_minutes' => $this->calculateItemDuration(
+                        $catalogItem
+                    ),
+                ]);
+
+                if ($catalogItem->isService()) {
+                    $appointmentItem->services()->create([
+                        'service_id' => $catalogItem->id,
+                        'service_name' => $catalogItem->name,
+                        'quantity' => $quantity,
+                        'duration_minutes' => (int) $catalogItem->duration_minutes,
+                        'unit_price' => $catalogItem->price,
+                        'scheduled_start_at' => null,
+                        'scheduled_end_at' => null,
+                        'notes' => null,
+                    ]);
+
+                    continue;
+                }
+
+                foreach ($catalogItem->packageServices as $service) {
+                    $componentQuantity =
+                        (int) $service->pivot->quantity
+                        * $quantity;
+
+                    $appointmentItem->services()->create([
+                        'service_id' => $service->id,
+                        'service_name' => $service->name,
+                        'quantity' => $componentQuantity,
+                        'duration_minutes' => (int) $service->duration_minutes,
+
+                        /*
+                         * The customer bought the package as one commercial
+                         * item, so its components do not receive separate
+                         * prices in the appointment.
+                         */
+                        'unit_price' => null,
+
+                        'scheduled_start_at' => null,
+                        'scheduled_end_at' => null,
+                        'notes' => $service->pivot->notes,
+                    ]);
+                }
+            }
+
+            return $appointment
+                ->load([
+                    'customer',
+                    'department',
+                    'items.services',
+                ]);
+        }, 3);
+    }
+
+    private function calculateItemDuration(
+        CatalogItem $catalogItem
+    ): ?int {
+        if ($catalogItem->isService()) {
+            return (int) $catalogItem->duration_minutes;
+        }
+
+        /** @var Collection<int, CatalogItem> $services */
+        $services = $catalogItem->packageServices;
+
+        $totalDuration = $services->sum(
+            fn (CatalogItem $service): int => (int) $service->duration_minutes
+                * (int) $service->pivot->quantity
+        );
+
+        return $totalDuration > 0
+            ? $totalDuration
+            : null;
+    }
+
+    private function generateUniqueReference(): string
+    {
+        do {
+            $reference = sprintf(
+                'GL-%s-%s',
+                now()->format('Ymd'),
+                Str::upper(Str::random(8))
+            );
+        } while (
+            Appointment::query()
+                ->where('reference', $reference)
+                ->exists()
+        );
+
+        return $reference;
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\app\Services\Appointments\ManageAppointmentService.php ================
+
+<?php
+
+namespace App\Services\Appointments;
+
+use App\Models\Appointment;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class ManageAppointmentService
+{
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function update(Appointment $appointment, array $data): Appointment
+    {
+        return DB::transaction(function () use ($appointment, $data): Appointment {
+            $locked = $this->lock($appointment);
+
+            if (! $locked->canBeEdited()) {
+                $this->invalidTransition();
+            }
+
+            if (
+                $locked->status === Appointment::STATUS_CONFIRMED
+                && array_key_exists('requested_start_at', $data)
+                && ! array_key_exists('confirmed_start_at', $data)
+            ) {
+                $data['confirmed_start_at'] = $data['requested_start_at'];
+            }
+
+            $locked->update($data);
+
+            return $this->load($locked);
+        }, 3);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function confirm(Appointment $appointment, array $data): Appointment
+    {
+        return $this->transition(
+            $appointment,
+            Appointment::STATUS_CONFIRMED,
+            function (Appointment $locked) use ($data): array {
+                return [
+                    'confirmed_start_at' => $data['confirmed_start_at']
+                            ?? $locked->requested_start_at,
+                    'admin_notes' => $data['admin_notes']
+                            ?? $locked->admin_notes,
+                ];
+            }
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function start(Appointment $appointment, array $data): Appointment
+    {
+        return $this->transition(
+            $appointment,
+            Appointment::STATUS_IN_PROGRESS,
+            fn (Appointment $locked): array => [
+                'admin_notes' => $data['admin_notes']
+                        ?? $locked->admin_notes,
+            ]
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function complete(Appointment $appointment, array $data): Appointment
+    {
+        return $this->transition(
+            $appointment,
+            Appointment::STATUS_COMPLETED,
+            fn (Appointment $locked): array => [
+                'completed_at' => now(),
+                'admin_notes' => $data['admin_notes']
+                        ?? $locked->admin_notes,
+            ]
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function cancel(Appointment $appointment, array $data): Appointment
+    {
+        return $this->transition(
+            $appointment,
+            Appointment::STATUS_CANCELLED,
+            fn (Appointment $locked): array => [
+                'cancelled_by' => 'manager',
+                'cancellation_reason' => trim($data['reason']),
+                'cancelled_at' => now(),
+                'admin_notes' => $data['admin_notes']
+                        ?? $locked->admin_notes,
+            ]
+        );
+    }
+
+/**
+ * Cancel an appointment by its customer.
+ */
+public function cancelByCustomer(
+    Appointment $appointment,
+    ?string $reason = null
+): Appointment {
+    return $this->transition(
+        $appointment,
+        Appointment::STATUS_CANCELLED,
+        fn (Appointment $locked): array => [
+            'cancelled_by' => 'customer',
+            'cancellation_reason' => filled($reason)
+                ? trim($reason)
+                : 'ØªÙ… Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ù…ÙˆØ¹Ø¯ Ù…Ù† Ù‚Ø¨Ù„ Ø§Ù„Ø²Ø¨ÙˆÙ†Ø©.',
+            'cancelled_at' => now(),
+        ]
+    );
+}
+
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function markNoShow(
+        Appointment $appointment,
+        array $data
+    ): Appointment {
+        return DB::transaction(function () use ($appointment, $data): Appointment {
+            $locked = $this->lock($appointment);
+            $effectiveStart = $locked->confirmed_start_at
+                ?? $locked->requested_start_at;
+
+            if (
+                ! $locked->canTransitionTo(Appointment::STATUS_NO_SHOW)
+                || $effectiveStart->isFuture()
+            ) {
+                $this->invalidTransition(
+                  'Ù„Ø§ ÙŠÙ…ÙƒÙ† ØªÙ†ÙÙŠØ° Ù‡Ø°Ø§ Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡ Ø¹Ù„Ù‰ Ø­Ø§Ù„Ø© Ø§Ù„Ù…ÙˆØ¹Ø¯ Ø§Ù„Ø­Ø§Ù„ÙŠØ©.'
+                );
+            }
+
+            $locked->update([
+                'status' => Appointment::STATUS_NO_SHOW,
+                'no_show_at' => now(),
+                'admin_notes' => $data['admin_notes']
+                        ?? $locked->admin_notes,
+            ]);
+
+            return $this->load($locked);
+        }, 3);
+    }
+
+    /**
+     * @param  callable(Appointment): array<string, mixed>  $attributes
+     */
+    private function transition(
+        Appointment $appointment,
+        string $targetStatus,
+        callable $attributes
+    ): Appointment {
+        return DB::transaction(function () use (
+            $appointment,
+            $targetStatus,
+            $attributes
+        ): Appointment {
+            $locked = $this->lock($appointment);
+
+            if (! $locked->canTransitionTo($targetStatus)) {
+                $this->invalidTransition();
+            }
+
+            $locked->update([
+                'status' => $targetStatus,
+                ...$attributes($locked),
+            ]);
+
+            return $this->load($locked);
+        }, 3);
+    }
+
+    private function lock(Appointment $appointment): Appointment
+    {
+        return Appointment::query()
+            ->whereKey($appointment->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    private function load(Appointment $appointment): Appointment
+    {
+        return $appointment->load([
+            'customer',
+            'department',
+            'items.services',
+        ]);
+    }
+
+    private function invalidTransition(
+        string $message = 'Ù„Ø§ ÙŠÙ…ÙƒÙ† ØªÙ†ÙÙŠØ° Ù‡Ø°Ø§ Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡ Ø¹Ù„Ù‰ Ø­Ø§Ù„Ø© Ø§Ù„Ù…ÙˆØ¹Ø¯ Ø§Ù„Ø­Ø§Ù„ÙŠØ©.'
+    ): never {
+        throw ValidationException::withMessages([
+            'status' => [$message],
+        ]);
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\database\migrations\2026_07_12_151819_create_appointments_table.php ================
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('appointments', function (Blueprint $table) {
+            $table->id();
+
+            $table->string('reference', 30)->unique();
+
+            $table->foreignId('customer_id')
+                ->constrained('users')
+                ->restrictOnDelete();
+
+            $table->foreignId('department_id')
+                ->constrained()
+                ->restrictOnDelete();
+
+            $table->string('status', 30)
+                ->default('pending')
+                ->index();
+
+            /*
+             * Ø§Ù„ÙˆÙ‚Øª Ø§Ù„Ø°ÙŠ Ø§Ø®ØªØ§Ø±ØªÙ‡ Ø§Ù„Ø²Ø¨ÙˆÙ†Ø© Ø¹Ù†Ø¯ Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø·Ù„Ø¨.
+             */
+            $table->timestampTz('requested_start_at')->index();
+
+            /*
+             * Ø§Ù„ÙˆÙ‚Øª Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ Ø¨Ø¹Ø¯ Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„Ù…ÙˆØ¹Ø¯ Ù…Ù† Ø§Ù„Ù…Ø¯ÙŠØ±Ø©.
+             */
+            $table->timestampTz('confirmed_start_at')
+                ->nullable()
+                ->index();
+
+            $table->text('customer_notes')->nullable();
+            $table->text('admin_notes')->nullable();
+
+            $table->string('cancelled_by', 20)->nullable();
+            $table->text('cancellation_reason')->nullable();
+            $table->timestampTz('cancelled_at')->nullable();
+
+            $table->timestampTz('completed_at')->nullable();
+            $table->timestampTz('no_show_at')->nullable();
+
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index([
+                'customer_id',
+                'status',
+                'requested_start_at',
+            ]);
+
+            $table->index([
+                'department_id',
+                'status',
+                'requested_start_at',
+            ]);
+        });
+
+        DB::statement(
+            "ALTER TABLE appointments
+             ADD CONSTRAINT appointments_status_check
+             CHECK (
+                 status IN (
+                     'pending',
+                     'confirmed',
+                     'in_progress',
+                     'completed',
+                     'cancelled',
+                     'no_show'
+                 )
+             )"
+        );
+
+        DB::statement(
+            "ALTER TABLE appointments
+             ADD CONSTRAINT appointments_cancelled_by_check
+             CHECK (
+                 cancelled_by IS NULL
+                 OR cancelled_by IN (
+                     'customer',
+                     'manager',
+                     'system'
+                 )
+             )"
+        );
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('appointments');
+    }
+};
+
+
+
+================ C:\Projects\GrandLayan\api_backend\database\migrations\2026_07_12_151835_create_appointment_items_table.php ================
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('appointment_items', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('appointment_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->foreignId('catalog_item_id')
+                ->constrained()
+                ->restrictOnDelete();
+
+            /*
+             * Snapshots protect old bookings from later catalog changes.
+             */
+            $table->string('item_type', 20);
+            $table->string('item_name', 150);
+            $table->string('price_type', 20);
+
+            $table->decimal('unit_price', 12, 2)->nullable();
+
+            $table->unsignedSmallInteger('quantity')
+                ->default(1);
+
+            $table->unsignedSmallInteger('duration_minutes')
+                ->nullable();
+
+            $table->timestamps();
+
+            $table->unique([
+                'appointment_id',
+                'catalog_item_id',
+            ]);
+
+            $table->index([
+                'appointment_id',
+                'item_type',
+            ]);
+        });
+
+        DB::statement(
+            "ALTER TABLE appointment_items
+             ADD CONSTRAINT appointment_items_type_check
+             CHECK (item_type IN ('service', 'package'))"
+        );
+
+        DB::statement(
+            "ALTER TABLE appointment_items
+             ADD CONSTRAINT appointment_items_price_type_check
+             CHECK (price_type IN ('fixed', 'inspection'))"
+        );
+
+        DB::statement(
+            "ALTER TABLE appointment_items
+             ADD CONSTRAINT appointment_items_price_check
+             CHECK (
+                 (price_type = 'fixed' AND unit_price IS NOT NULL AND unit_price >= 0)
+                 OR
+                 (price_type = 'inspection' AND unit_price IS NULL)
+             )"
+        );
+
+        DB::statement(
+            'ALTER TABLE appointment_items
+             ADD CONSTRAINT appointment_items_quantity_check
+             CHECK (quantity > 0)'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointment_items
+             ADD CONSTRAINT appointment_items_duration_check
+             CHECK (
+                 duration_minutes IS NULL
+                 OR duration_minutes > 0
+             )'
+        );
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('appointment_items');
+    }
+};
+
+
+
+================ C:\Projects\GrandLayan\api_backend\database\migrations\2026_07_12_151849_create_appointment_services_table.php ================
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('appointment_services', function (Blueprint $table) {
+            $table->id();
+
+            $table->foreignId('appointment_item_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->foreignId('service_id')
+                ->constrained('catalog_items')
+                ->restrictOnDelete();
+
+            /*
+             * Snapshot of service information at booking time.
+             */
+            $table->string('service_name', 150);
+
+            $table->unsignedSmallInteger('quantity')
+                ->default(1);
+
+            $table->unsignedSmallInteger('duration_minutes');
+
+            /*
+             * Null for package components when the commercial price belongs
+             * to the package, or for inspection-priced services.
+             */
+            $table->decimal('unit_price', 12, 2)->nullable();
+
+            /*
+             * Employee assignment will be added later when the internal
+             * employee records are implemented.
+             */
+            $table->timestampTz('scheduled_start_at')->nullable();
+            $table->timestampTz('scheduled_end_at')->nullable();
+
+            $table->text('notes')->nullable();
+
+            $table->timestamps();
+
+            $table->unique([
+                'appointment_item_id',
+                'service_id',
+            ]);
+
+            $table->index('service_id');
+
+            $table->index([
+                'scheduled_start_at',
+                'scheduled_end_at',
+            ]);
+        });
+
+        DB::statement(
+            'ALTER TABLE appointment_services
+             ADD CONSTRAINT appointment_services_quantity_check
+             CHECK (quantity > 0)'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointment_services
+             ADD CONSTRAINT appointment_services_duration_check
+             CHECK (duration_minutes > 0)'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointment_services
+             ADD CONSTRAINT appointment_services_price_check
+             CHECK (
+                 unit_price IS NULL
+                 OR unit_price >= 0
+             )'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointment_services
+             ADD CONSTRAINT appointment_services_time_check
+             CHECK (
+                 scheduled_start_at IS NULL
+                 OR scheduled_end_at IS NULL
+                 OR scheduled_end_at > scheduled_start_at
+             )'
+        );
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('appointment_services');
+    }
+};
+
+
+
+================ C:\Projects\GrandLayan\api_backend\database\migrations\2026_07_12_182146_add_appointment_service_integrity_trigger.php ================
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        DB::unprepared(<<<'SQL'
+CREATE OR REPLACE FUNCTION validate_appointment_service()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM catalog_items
+        WHERE id = NEW.service_id
+          AND type = 'service'
+    ) THEN
+        RAISE EXCEPTION
+            'Only catalog items of type service can be used in appointment_services.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_validate_appointment_service
+BEFORE INSERT OR UPDATE
+ON appointment_services
+FOR EACH ROW
+EXECUTE FUNCTION validate_appointment_service();
+SQL);
+    }
+
+    public function down(): void
+    {
+        DB::unprepared(<<<'SQL'
+DROP TRIGGER IF EXISTS trg_validate_appointment_service
+ON appointment_services;
+
+DROP FUNCTION IF EXISTS validate_appointment_service();
+SQL);
+    }
+};
+
+
+
+================ C:\Projects\GrandLayan\api_backend\database\migrations\2026_07_17_091633_add_coupon_and_totals_to_appointments_table.php ================
+
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('appointments', function (Blueprint $table): void {
+            $table->foreignId('coupon_id')
+                ->nullable()
+                ->after('department_id')
+                ->constrained('coupons')
+                ->nullOnDelete();
+
+            $table->decimal('subtotal_amount', 12, 2)
+                ->nullable()
+                ->after('coupon_id');
+
+            $table->decimal('discount_amount', 12, 2)
+                ->default(0)
+                ->after('subtotal_amount');
+
+            $table->decimal('final_amount', 12, 2)
+                ->nullable()
+                ->after('discount_amount');
+
+            $table->index('coupon_id');
+        });
+
+        DB::statement(
+            'ALTER TABLE appointments
+             ADD CONSTRAINT appointments_subtotal_amount_check
+             CHECK (
+                 subtotal_amount IS NULL
+                 OR subtotal_amount >= 0
+             )'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointments
+             ADD CONSTRAINT appointments_discount_amount_check
+             CHECK (discount_amount >= 0)'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointments
+             ADD CONSTRAINT appointments_final_amount_check
+             CHECK (
+                 final_amount IS NULL
+                 OR final_amount >= 0
+             )'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointments
+             ADD CONSTRAINT appointments_discount_not_above_subtotal_check
+             CHECK (
+                 subtotal_amount IS NULL
+                 OR discount_amount <= subtotal_amount
+             )'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointments
+             ADD CONSTRAINT appointments_final_amount_consistency_check
+             CHECK (
+                 subtotal_amount IS NULL
+                 OR final_amount IS NULL
+                 OR final_amount = subtotal_amount - discount_amount
+             )'
+        );
+    }
+
+    public function down(): void
+    {
+        DB::statement(
+            'ALTER TABLE appointments
+             DROP CONSTRAINT IF EXISTS
+             appointments_final_amount_consistency_check'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointments
+             DROP CONSTRAINT IF EXISTS
+             appointments_discount_not_above_subtotal_check'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointments
+             DROP CONSTRAINT IF EXISTS
+             appointments_final_amount_check'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointments
+             DROP CONSTRAINT IF EXISTS
+             appointments_discount_amount_check'
+        );
+
+        DB::statement(
+            'ALTER TABLE appointments
+             DROP CONSTRAINT IF EXISTS
+             appointments_subtotal_amount_check'
+        );
+
+        Schema::table('appointments', function (Blueprint $table): void {
+            $table->dropForeign(['coupon_id']);
+            $table->dropIndex(['coupon_id']);
+
+            $table->dropColumn([
+                'coupon_id',
+                'subtotal_amount',
+                'discount_amount',
+                'final_amount',
+            ]);
+        });
+    }
+};
+
+
+
+================ C:\Projects\GrandLayan\api_backend\tests\Feature\Api\Admin\AdminAppointmentControllerTest.php ================
+
+<?php
+
+namespace Tests\Feature\Api\Admin;
+
+use App\Models\Appointment;
+use App\Models\Department;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+class AdminAppointmentControllerTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $manager;
+
+    private User $customer;
+
+    private Department $salon;
+
+    private Department $clinic;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Role::findOrCreate('manager');
+        Role::findOrCreate('customer');
+
+        $this->manager = User::factory()->create();
+        $this->manager->assignRole('manager');
+
+        $this->customer = User::factory()->create([
+            'name' => 'Ø³Ø§Ø±Ø© Ø£Ø­Ù…Ø¯',
+            'phone' => '07700000001',
+        ]);
+        $this->customer->assignRole('customer');
+
+        $this->salon = Department::factory()->create([
+            'code' => 'salon',
+            'name' => 'Ø§Ù„ØµØ§Ù„ÙˆÙ†',
+        ]);
+
+        $this->clinic = Department::factory()->create([
+            'code' => 'clinic',
+            'name' => 'Ø§Ù„Ø¹ÙŠØ§Ø¯Ø©',
+        ]);
+
+        Sanctum::actingAs($this->manager);
+    }
+
+    public function test_manager_can_search_filter_and_paginate_appointments(): void
+    {
+        Appointment::factory()->create([
+            'customer_id' => $this->customer->id,
+            'department_id' => $this->salon->id,
+            'reference' => 'GL-SEARCH-001',
+            'status' => Appointment::STATUS_PENDING,
+            'requested_start_at' => now()->addDays(2),
+        ]);
+
+        Appointment::factory()->confirmed()->create([
+            'customer_id' => $this->customer->id,
+            'department_id' => $this->clinic->id,
+            'reference' => 'GL-OTHER-001',
+            'requested_start_at' => now()->addDays(3),
+            'confirmed_start_at' => now()->addDays(3),
+        ]);
+
+        $response = $this->getJson(
+            '/api/admin/appointments?search=SEARCH'
+            .'&status=pending'
+            ."&department_id={$this->salon->id}"
+            .'&per_page=1'
+        );
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.reference', 'GL-SEARCH-001')
+            ->assertJsonPath('meta.per_page', 1)
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_customer_cannot_manage_admin_appointments(): void
+    {
+        Sanctum::actingAs($this->customer);
+
+        $appointment = $this->pendingAppointment();
+
+        $this->postJson(
+            "/api/admin/appointments/{$appointment->id}/confirm"
+        )->assertForbidden();
+    }
+
+    public function test_manager_can_confirm_pending_appointment(): void
+    {
+        $appointment = $this->pendingAppointment();
+        $confirmedAt = now()->addDays(2)->startOfMinute();
+
+        $this->postJson(
+            "/api/admin/appointments/{$appointment->id}/confirm",
+            ['confirmed_start_at' => $confirmedAt->toISOString()]
+        )
+            ->assertOk()
+            ->assertJsonPath('data.status', Appointment::STATUS_CONFIRMED);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'status' => Appointment::STATUS_CONFIRMED,
+        ]);
+    }
+
+    public function test_manager_can_edit_pending_or_confirmed_appointment(): void
+    {
+        $appointment = $this->pendingAppointment();
+        $newStart = now()->addDays(4)->startOfMinute();
+
+        $this->patchJson(
+            "/api/admin/appointments/{$appointment->id}",
+            [
+                'requested_start_at' => $newStart->toISOString(),
+                'admin_notes' => 'ØªØ¹Ø¯ÙŠÙ„ Ø¥Ø¯Ø§Ø±ÙŠ',
+            ]
+        )
+            ->assertOk()
+            ->assertJsonPath('data.admin_notes', 'ØªØ¹Ø¯ÙŠÙ„ Ø¥Ø¯Ø§Ø±ÙŠ');
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'admin_notes' => 'ØªØ¹Ø¯ÙŠÙ„ Ø¥Ø¯Ø§Ø±ÙŠ',
+        ]);
+    }
+
+    public function test_manager_can_start_and_complete_confirmed_appointment(): void
+    {
+        $appointment = Appointment::factory()->confirmed()->create([
+            'customer_id' => $this->customer->id,
+            'department_id' => $this->salon->id,
+        ]);
+
+        $this->postJson(
+            "/api/admin/appointments/{$appointment->id}/start"
+        )
+            ->assertOk()
+            ->assertJsonPath('data.status', Appointment::STATUS_IN_PROGRESS);
+
+        $this->postJson(
+            "/api/admin/appointments/{$appointment->id}/complete"
+        )
+            ->assertOk()
+            ->assertJsonPath('data.status', Appointment::STATUS_COMPLETED)
+            ->assertJsonPath('data.completed_at', fn ($value) => $value !== null);
+    }
+
+    public function test_manager_can_cancel_pending_appointment_with_reason(): void
+    {
+        $appointment = $this->pendingAppointment();
+
+        $this->postJson(
+            "/api/admin/appointments/{$appointment->id}/cancel",
+            ['reason' => 'Ø·Ù„Ø¨Øª Ø§Ù„Ø²Ø¨ÙˆÙ†Ø© Ø§Ù„Ø¥Ù„ØºØ§Ø¡']
+        )
+            ->assertOk()
+            ->assertJsonPath('data.status', Appointment::STATUS_CANCELLED)
+            ->assertJsonPath('data.cancelled_by', 'manager')
+            ->assertJsonPath(
+                'data.cancellation_reason',
+                'Ø·Ù„Ø¨Øª Ø§Ù„Ø²Ø¨ÙˆÙ†Ø© Ø§Ù„Ø¥Ù„ØºØ§Ø¡'
+            );
+    }
+
+    public function test_manager_can_mark_past_confirmed_appointment_as_no_show(): void
+    {
+        $appointment = Appointment::factory()->confirmed()->create([
+            'customer_id' => $this->customer->id,
+            'department_id' => $this->salon->id,
+            'requested_start_at' => now()->subHour(),
+            'confirmed_start_at' => now()->subHour(),
+        ]);
+
+        $this->postJson(
+            "/api/admin/appointments/{$appointment->id}/no-show"
+        )
+            ->assertOk()
+            ->assertJsonPath('data.status', Appointment::STATUS_NO_SHOW)
+            ->assertJsonPath('data.no_show_at', fn ($value) => $value !== null);
+    }
+
+    public function test_invalid_state_transition_is_rejected(): void
+    {
+        $appointment = Appointment::factory()->completed()->create([
+            'customer_id' => $this->customer->id,
+            'department_id' => $this->salon->id,
+        ]);
+
+        $this->postJson(
+            "/api/admin/appointments/{$appointment->id}/confirm"
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+    }
+
+    public function test_no_show_cannot_be_recorded_before_appointment_time(): void
+    {
+        $appointment = Appointment::factory()->confirmed()->create([
+            'customer_id' => $this->customer->id,
+            'department_id' => $this->salon->id,
+            'requested_start_at' => now()->addDay(),
+            'confirmed_start_at' => now()->addDay(),
+        ]);
+
+        $this->postJson(
+            "/api/admin/appointments/{$appointment->id}/no-show"
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
+    }
+
+    public function test_cancellation_reason_is_required(): void
+    {
+        $appointment = $this->pendingAppointment();
+
+        $this->postJson(
+            "/api/admin/appointments/{$appointment->id}/cancel"
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('reason');
+    }
+
+    private function pendingAppointment(): Appointment
+    {
+        return Appointment::factory()->create([
+            'customer_id' => $this->customer->id,
+            'department_id' => $this->salon->id,
+            'status' => Appointment::STATUS_PENDING,
+        ]);
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\tests\Feature\Api\Admin\AdminAppointmentDetailsTest.php ================
+
+<?php
+
+namespace Tests\Feature\Api\Admin;
+
+use App\Models\Appointment;
+use App\Models\Department;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+class AdminAppointmentDetailsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Role::findOrCreate('manager');
+        Role::findOrCreate('customer');
+    }
+
+    public function test_guest_cannot_view_appointment_details(): void
+    {
+        $appointment = Appointment::factory()->create();
+
+        $this->getJson(
+            "/api/admin/appointments/{$appointment->id}"
+        )->assertUnauthorized();
+    }
+
+    public function test_customer_cannot_view_admin_appointment_details(): void
+    {
+        $customer = User::factory()->create();
+        $customer->assignRole('customer');
+
+        $appointment = Appointment::factory()->create();
+
+        Sanctum::actingAs($customer);
+
+        $this->getJson(
+            "/api/admin/appointments/{$appointment->id}"
+        )->assertForbidden();
+    }
+
+    public function test_manager_can_view_appointment_details(): void
+    {
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+
+        $customer = User::factory()->create([
+            'name' => 'Ø³Ø§Ø±Ø© Ø£Ø­Ù…Ø¯',
+        ]);
+        $customer->assignRole('customer');
+
+        $department = Department::factory()->create();
+
+        $appointment = Appointment::factory()->create([
+            'customer_id' => $customer->id,
+            'department_id' => $department->id,
+            'status' => Appointment::STATUS_PENDING,
+        ]);
+
+        Sanctum::actingAs($manager);
+
+        $this->getJson(
+            "/api/admin/appointments/{$appointment->id}"
+        )
+            ->assertOk()
+            ->assertJsonPath(
+                'data.id',
+                $appointment->id
+            )
+            ->assertJsonPath(
+                'data.customer.name',
+                'Ø³Ø§Ø±Ø© Ø£Ø­Ù…Ø¯'
+            )
+            ->assertJsonPath(
+                'data.status',
+                Appointment::STATUS_PENDING
+            );
+    }
+
+    public function test_unknown_appointment_returns_not_found(): void
+    {
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+
+        Sanctum::actingAs($manager);
+
+        $this->getJson(
+            '/api/admin/appointments/999999'
+        )->assertNotFound();
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\tests\Feature\Api\Appointments\CreateAppointmentTest.php ================
+
+<?php
+
+namespace Tests\Feature\Api\Appointments;
+
+use App\Models\CatalogItem;
+use App\Models\Category;
+use App\Models\Department;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+class CreateAppointmentTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Role $customerRole;
+
+    private Role $managerRole;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->customerRole = Role::create([
+            'name' => 'customer',
+            'guard_name' => 'web',
+        ]);
+
+        $this->managerRole = Role::create([
+            'name' => 'manager',
+            'guard_name' => 'web',
+        ]);
+    }
+
+    public function test_guest_cannot_create_appointment(): void
+    {
+        $response = $this->postJson('/api/appointments', []);
+
+        $response->assertUnauthorized();
+    }
+
+    public function test_manager_cannot_use_customer_appointment_creation_route(): void
+    {
+        $manager = User::factory()->create([
+            'is_active' => true,
+        ]);
+
+        $manager->assignRole($this->managerRole);
+
+        Sanctum::actingAs($manager);
+
+        $response = $this->postJson('/api/appointments', []);
+
+        $response->assertForbidden();
+    }
+
+    public function test_inactive_customer_cannot_create_appointment(): void
+    {
+        $customer = User::factory()->inactive()->create();
+        $customer->assignRole($this->customerRole);
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', []);
+
+        $response->assertForbidden();
+    }
+
+    public function test_customer_can_create_appointment_with_single_service(): void
+    {
+        [$customer, $department, $service] =
+            $this->createCustomerDepartmentAndService();
+
+        Sanctum::actingAs($customer);
+
+        $requestedStartAt = now()
+            ->addDays(2)
+            ->setTime(10, 0)
+            ->toIso8601String();
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $department->id,
+            'requested_start_at' => $requestedStartAt,
+            'customer_notes' => 'Ø£ÙØ¶Ù„ Ø§Ù„Ù…ÙˆØ¹Ø¯ ØµØ¨Ø§Ø­Ù‹Ø§.',
+            'items' => [
+                [
+                    'catalog_item_id' => $service->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.customer.id', $customer->id)
+            ->assertJsonPath('data.department.id', $department->id)
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath(
+                'data.items.0.catalog_item_id',
+                $service->id
+            )
+            ->assertJsonPath(
+                'data.items.0.item_name',
+                $service->name
+            )
+            ->assertJsonPath(
+                'data.items.0.unit_price',
+                '25000.00'
+            )
+            ->assertJsonPath(
+                'data.items.0.duration_minutes',
+                30
+            );
+
+        $this->assertDatabaseHas('appointments', [
+            'customer_id' => $customer->id,
+            'department_id' => $department->id,
+            'status' => 'pending',
+            'customer_notes' => 'Ø£ÙØ¶Ù„ Ø§Ù„Ù…ÙˆØ¹Ø¯ ØµØ¨Ø§Ø­Ù‹Ø§.',
+        ]);
+
+        $appointmentId = DB::table('appointments')
+            ->where('customer_id', $customer->id)
+            ->value('id');
+
+        $this->assertDatabaseHas('appointment_items', [
+            'appointment_id' => $appointmentId,
+            'catalog_item_id' => $service->id,
+            'item_type' => CatalogItem::TYPE_SERVICE,
+            'item_name' => $service->name,
+            'price_type' => CatalogItem::PRICE_TYPE_FIXED,
+            'unit_price' => '25000.00',
+            'quantity' => 1,
+            'duration_minutes' => 30,
+        ]);
+
+        $this->assertDatabaseHas('appointment_services', [
+            'service_id' => $service->id,
+            'service_name' => $service->name,
+            'quantity' => 1,
+            'duration_minutes' => 30,
+            'unit_price' => '25000.00',
+        ]);
+    }
+
+    public function test_customer_can_create_appointment_with_multiple_services(): void
+    {
+        [$customer, $department, $firstService] =
+            $this->createCustomerDepartmentAndService();
+
+        $secondService = CatalogItem::factory()->create([
+            'category_id' => $firstService->category_id,
+            'type' => CatalogItem::TYPE_SERVICE,
+            'name' => 'Ø³Ø´ÙˆØ§Ø±',
+            'price_type' => CatalogItem::PRICE_TYPE_FIXED,
+            'price' => 25000,
+            'duration_minutes' => 45,
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $department->id,
+            'requested_start_at' => now()
+                ->addDays(2)
+                ->setTime(11, 0)
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $firstService->id,
+                    'quantity' => 1,
+                ],
+                [
+                    'catalog_item_id' => $secondService->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonCount(2, 'data.items');
+
+        $this->assertDatabaseCount('appointments', 1);
+        $this->assertDatabaseCount('appointment_items', 2);
+        $this->assertDatabaseCount('appointment_services', 2);
+    }
+
+    public function test_package_is_expanded_into_executable_services(): void
+    {
+        [$customer, $department, $firstService] =
+            $this->createCustomerDepartmentAndService();
+
+        $secondService = CatalogItem::factory()->create([
+            'category_id' => $firstService->category_id,
+            'type' => CatalogItem::TYPE_SERVICE,
+            'name' => 'ØªØ³Ø±ÙŠØ­Ø©',
+            'price_type' => CatalogItem::PRICE_TYPE_FIXED,
+            'price' => 50000,
+            'duration_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        $package = CatalogItem::factory()->create([
+            'category_id' => $firstService->category_id,
+            'type' => CatalogItem::TYPE_PACKAGE,
+            'name' => 'Ø¨Ø§ÙƒØ¬ Ø§Ù„Ø¹Ø±ÙˆØ³',
+            'price_type' => CatalogItem::PRICE_TYPE_FIXED,
+            'price' => 350000,
+            'duration_minutes' => null,
+            'is_active' => true,
+        ]);
+
+        DB::table('package_items')->insert([
+            [
+                'package_id' => $package->id,
+                'service_id' => $firstService->id,
+                'quantity' => 1,
+                'notes' => 'ØªÙ†ÙÙŠØ° Ø§Ù„Ù…ÙƒÙŠØ§Ø¬ Ø£ÙˆÙ„Ù‹Ø§.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'package_id' => $package->id,
+                'service_id' => $secondService->id,
+                'quantity' => 1,
+                'notes' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $department->id,
+            'requested_start_at' => now()
+                ->addDays(3)
+                ->setTime(12, 0)
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $package->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath(
+                'data.items.0.item_type',
+                CatalogItem::TYPE_PACKAGE
+            )
+            ->assertJsonPath(
+                'data.items.0.unit_price',
+                '350000.00'
+            )
+            ->assertJsonCount(
+                2,
+                'data.items.0.services'
+            );
+
+        $this->assertDatabaseCount('appointments', 1);
+        $this->assertDatabaseCount('appointment_items', 1);
+        $this->assertDatabaseCount('appointment_services', 2);
+
+        $this->assertDatabaseHas('appointment_services', [
+            'service_id' => $firstService->id,
+            'service_name' => $firstService->name,
+            'unit_price' => null,
+            'notes' => 'ØªÙ†ÙÙŠØ° Ø§Ù„Ù…ÙƒÙŠØ§Ø¬ Ø£ÙˆÙ„Ù‹Ø§.',
+        ]);
+
+        $this->assertDatabaseHas('appointment_services', [
+            'service_id' => $secondService->id,
+            'service_name' => $secondService->name,
+            'unit_price' => null,
+        ]);
+    }
+
+    public function test_customer_cannot_book_item_from_another_department(): void
+    {
+        [$customer, $salon, $salonService] =
+            $this->createCustomerDepartmentAndService();
+
+        $clinic = Department::factory()->clinic()->create();
+
+        $clinicCategory = Category::factory()->create([
+            'department_id' => $clinic->id,
+            'name' => 'Ø§Ù„ÙÙŠÙ„Ø±',
+            'is_active' => true,
+        ]);
+
+        $clinicService = CatalogItem::factory()->create([
+            'category_id' => $clinicCategory->id,
+            'type' => CatalogItem::TYPE_SERVICE,
+            'name' => 'ÙÙŠÙ„Ø± ÙƒÙˆØ±ÙŠ',
+            'price_type' => CatalogItem::PRICE_TYPE_FIXED,
+            'price' => 100000,
+            'duration_minutes' => 30,
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $salon->id,
+            'requested_start_at' => now()
+                ->addDays(2)
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $salonService->id,
+                    'quantity' => 1,
+                ],
+                [
+                    'catalog_item_id' => $clinicService->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+
+        $this->assertDatabaseCount('appointments', 0);
+    }
+
+    public function test_customer_cannot_book_inactive_catalog_item(): void
+    {
+        [$customer, $department, $service] =
+            $this->createCustomerDepartmentAndService();
+
+        $service->update([
+            'is_active' => false,
+        ]);
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $department->id,
+            'requested_start_at' => now()
+                ->addDays(2)
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $service->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items.0.catalog_item_id');
+
+        $this->assertDatabaseCount('appointments', 0);
+    }
+
+    public function test_customer_cannot_book_deleted_catalog_item(): void
+    {
+        [$customer, $department, $service] =
+            $this->createCustomerDepartmentAndService();
+
+        $service->delete();
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $department->id,
+            'requested_start_at' => now()
+                ->addDays(2)
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $service->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items.0.catalog_item_id');
+
+        $this->assertDatabaseCount('appointments', 0);
+    }
+
+    public function test_customer_cannot_book_in_the_past(): void
+    {
+        [$customer, $department, $service] =
+            $this->createCustomerDepartmentAndService();
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $department->id,
+            'requested_start_at' => now()
+                ->subHour()
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $service->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('requested_start_at');
+
+        $this->assertDatabaseCount('appointments', 0);
+    }
+
+    public function test_same_catalog_item_cannot_be_submitted_twice(): void
+    {
+        [$customer, $department, $service] =
+            $this->createCustomerDepartmentAndService();
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $department->id,
+            'requested_start_at' => now()
+                ->addDays(2)
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $service->id,
+                    'quantity' => 1,
+                ],
+                [
+                    'catalog_item_id' => $service->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(
+                'items.1.catalog_item_id'
+            );
+
+        $this->assertDatabaseCount('appointments', 0);
+    }
+
+    public function test_package_without_services_cannot_be_booked(): void
+    {
+        [$customer, $department, $service] =
+            $this->createCustomerDepartmentAndService();
+
+        $package = CatalogItem::factory()->create([
+            'category_id' => $service->category_id,
+            'type' => CatalogItem::TYPE_PACKAGE,
+            'name' => 'Ø¨Ø§ÙƒØ¬ ÙØ§Ø±Øº',
+            'price_type' => CatalogItem::PRICE_TYPE_FIXED,
+            'price' => 100000,
+            'duration_minutes' => null,
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $department->id,
+            'requested_start_at' => now()
+                ->addDays(2)
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $package->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+
+        $this->assertDatabaseCount('appointments', 0);
+    }
+
+    public function test_service_without_duration_cannot_be_booked(): void
+    {
+        [$customer, $department, $service] =
+            $this->createCustomerDepartmentAndService();
+
+        $service->update([
+            'duration_minutes' => null,
+        ]);
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'department_id' => $department->id,
+            'requested_start_at' => now()
+                ->addDays(2)
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $service->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+
+        $this->assertDatabaseCount('appointments', 0);
+    }
+
+    public function test_backend_ignores_client_supplied_price_duration_and_customer(): void
+    {
+        [$customer, $department, $service] =
+            $this->createCustomerDepartmentAndService();
+
+        $otherCustomer = User::factory()->create([
+            'is_active' => true,
+        ]);
+        $otherCustomer->assignRole($this->customerRole);
+
+        Sanctum::actingAs($customer);
+
+        $response = $this->postJson('/api/appointments', [
+            'customer_id' => $otherCustomer->id,
+            'department_id' => $department->id,
+            'requested_start_at' => now()
+                ->addDays(2)
+                ->toIso8601String(),
+            'items' => [
+                [
+                    'catalog_item_id' => $service->id,
+                    'quantity' => 1,
+                    'unit_price' => 1,
+                    'duration_minutes' => 1,
+                ],
+            ],
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath(
+                'data.customer.id',
+                $customer->id
+            )
+            ->assertJsonPath(
+                'data.items.0.unit_price',
+                '25000.00'
+            )
+            ->assertJsonPath(
+                'data.items.0.duration_minutes',
+                30
+            );
+
+        $this->assertDatabaseHas('appointments', [
+            'customer_id' => $customer->id,
+        ]);
+
+        $this->assertDatabaseMissing('appointments', [
+            'customer_id' => $otherCustomer->id,
+        ]);
+    }
+
+    /**
+     * @return array{0: User, 1: Department, 2: CatalogItem}
+     */
+    private function createCustomerDepartmentAndService(): array
+    {
+        $customer = User::factory()->create([
+            'is_active' => true,
+        ]);
+
+        $customer->assignRole($this->customerRole);
+
+        $department = Department::factory()->salon()->create();
+
+        $category = Category::factory()->create([
+            'department_id' => $department->id,
+            'name' => 'Ø§Ù„Ø´Ø¹Ø±',
+            'is_active' => true,
+        ]);
+
+        $service = CatalogItem::factory()->create([
+            'category_id' => $category->id,
+            'type' => CatalogItem::TYPE_SERVICE,
+            'name' => 'Ù‚Øµ Ø´Ø¹Ø±',
+            'price_type' => CatalogItem::PRICE_TYPE_FIXED,
+            'price' => 25000,
+            'duration_minutes' => 30,
+            'is_active' => true,
+        ]);
+
+        return [
+            $customer,
+            $department,
+            $service,
+        ];
+    }
+}
+
+
+
+================ C:\Projects\GrandLayan\api_backend\tests\Feature\Appointments\AppointmentDatabaseConstraintsTest.php ================
+
+<?php
+
+namespace Tests\Feature\Appointments;
+
+use App\Models\CatalogItem;
+use App\Models\Category;
+use App\Models\Department;
+use App\Models\User;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+class AppointmentDatabaseConstraintsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private static int $referenceSequence = 1;
+
+    public function test_appointment_rejects_unsupported_status(): void
+    {
+        [$customer, $department] = $this->createCustomerAndDepartment();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointments')->insert(
+            $this->appointmentPayload(
+                customerId: $customer->id,
+                departmentId: $department->id,
+                status: 'invalid_status',
+            )
+        );
+    }
+
+    public function test_appointment_accepts_supported_status(): void
+    {
+        [$customer, $department] = $this->createCustomerAndDepartment();
+
+        $appointmentId = DB::table('appointments')->insertGetId(
+            $this->appointmentPayload(
+                customerId: $customer->id,
+                departmentId: $department->id,
+                status: 'pending',
+            )
+        );
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointmentId,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_appointment_rejects_unsupported_cancelled_by_value(): void
+    {
+        [$customer, $department] = $this->createCustomerAndDepartment();
+
+        $payload = $this->appointmentPayload(
+            customerId: $customer->id,
+            departmentId: $department->id,
+        );
+
+        $payload['cancelled_by'] = 'employee';
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointments')->insert($payload);
+    }
+
+    public function test_same_catalog_item_cannot_be_added_twice_to_appointment(): void
+    {
+        [$appointmentId, $catalogItem] = $this->createAppointmentAndService();
+
+        DB::table('appointment_items')->insert(
+            $this->appointmentItemPayload(
+                appointmentId: $appointmentId,
+                catalogItem: $catalogItem,
+            )
+        );
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_items')->insert(
+            $this->appointmentItemPayload(
+                appointmentId: $appointmentId,
+                catalogItem: $catalogItem,
+            )
+        );
+    }
+
+    public function test_fixed_price_appointment_item_requires_price(): void
+    {
+        [$appointmentId, $catalogItem] = $this->createAppointmentAndService();
+
+        $payload = $this->appointmentItemPayload(
+            appointmentId: $appointmentId,
+            catalogItem: $catalogItem,
+        );
+
+        $payload['price_type'] = 'fixed';
+        $payload['unit_price'] = null;
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_items')->insert($payload);
+    }
+
+    public function test_fixed_price_appointment_item_rejects_negative_price(): void
+    {
+        [$appointmentId, $catalogItem] = $this->createAppointmentAndService();
+
+        $payload = $this->appointmentItemPayload(
+            appointmentId: $appointmentId,
+            catalogItem: $catalogItem,
+        );
+
+        $payload['price_type'] = 'fixed';
+        $payload['unit_price'] = -1;
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_items')->insert($payload);
+    }
+
+    public function test_inspection_appointment_item_must_not_store_price(): void
+    {
+        [$appointmentId, $catalogItem] = $this->createAppointmentAndService();
+
+        $payload = $this->appointmentItemPayload(
+            appointmentId: $appointmentId,
+            catalogItem: $catalogItem,
+        );
+
+        $payload['price_type'] = 'inspection';
+        $payload['unit_price'] = 25000;
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_items')->insert($payload);
+    }
+
+    public function test_appointment_item_quantity_must_be_greater_than_zero(): void
+    {
+        [$appointmentId, $catalogItem] = $this->createAppointmentAndService();
+
+        $payload = $this->appointmentItemPayload(
+            appointmentId: $appointmentId,
+            catalogItem: $catalogItem,
+        );
+
+        $payload['quantity'] = 0;
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_items')->insert($payload);
+    }
+
+    public function test_appointment_item_duration_must_be_greater_than_zero_when_present(): void
+    {
+        [$appointmentId, $catalogItem] = $this->createAppointmentAndService();
+
+        $payload = $this->appointmentItemPayload(
+            appointmentId: $appointmentId,
+            catalogItem: $catalogItem,
+        );
+
+        $payload['duration_minutes'] = 0;
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_items')->insert($payload);
+    }
+
+    public function test_appointment_service_quantity_must_be_greater_than_zero(): void
+    {
+        [$appointmentItemId, $service] = $this->createAppointmentItemAndService();
+
+        $payload = $this->appointmentServicePayload(
+            appointmentItemId: $appointmentItemId,
+            service: $service,
+        );
+
+        $payload['quantity'] = 0;
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_services')->insert($payload);
+    }
+
+    public function test_appointment_service_duration_must_be_greater_than_zero(): void
+    {
+        [$appointmentItemId, $service] = $this->createAppointmentItemAndService();
+
+        $payload = $this->appointmentServicePayload(
+            appointmentItemId: $appointmentItemId,
+            service: $service,
+        );
+
+        $payload['duration_minutes'] = 0;
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_services')->insert($payload);
+    }
+
+    public function test_appointment_service_rejects_negative_price(): void
+    {
+        [$appointmentItemId, $service] = $this->createAppointmentItemAndService();
+
+        $payload = $this->appointmentServicePayload(
+            appointmentItemId: $appointmentItemId,
+            service: $service,
+        );
+
+        $payload['unit_price'] = -1;
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_services')->insert($payload);
+    }
+
+    public function test_scheduled_end_must_be_after_scheduled_start(): void
+    {
+        [$appointmentItemId, $service] = $this->createAppointmentItemAndService();
+
+        $payload = $this->appointmentServicePayload(
+            appointmentItemId: $appointmentItemId,
+            service: $service,
+        );
+
+        $payload['scheduled_start_at'] = now()->addDay();
+        $payload['scheduled_end_at'] = now()->addDay()->subMinute();
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_services')->insert($payload);
+    }
+
+    public function test_same_service_cannot_be_repeated_inside_same_appointment_item(): void
+    {
+        [$appointmentItemId, $service] = $this->createAppointmentItemAndService();
+
+        DB::table('appointment_services')->insert(
+            $this->appointmentServicePayload(
+                appointmentItemId: $appointmentItemId,
+                service: $service,
+            )
+        );
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_services')->insert(
+            $this->appointmentServicePayload(
+                appointmentItemId: $appointmentItemId,
+                service: $service,
+            )
+        );
+    }
+
+    public function test_package_cannot_be_used_as_executable_appointment_service(): void
+    {
+        [$appointmentItemId, $service] = $this->createAppointmentItemAndService();
+
+        $package = CatalogItem::factory()->create([
+            'category_id' => $service->category_id,
+            'type' => CatalogItem::TYPE_PACKAGE,
+            'name' => 'Ø¨Ø§ÙƒØ¬ ØºÙŠØ± ØµØ§Ù„Ø­ ÙƒØ®Ø¯Ù…Ø© ØªÙ†ÙÙŠØ°ÙŠØ©',
+            'price_type' => CatalogItem::PRICE_TYPE_FIXED,
+            'price' => 100000,
+            'duration_minutes' => null,
+            'is_active' => true,
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('appointment_services')->insert(
+            $this->appointmentServicePayload(
+                appointmentItemId: $appointmentItemId,
+                service: $package,
+            )
+        );
+    }
+
+    /**
+     * @return array{0: User, 1: Department}
+     */
+    private function createCustomerAndDepartment(): array
+    {
+        $customer = User::factory()->create([
+            'is_active' => true,
+        ]);
+
+        $department = Department::factory()->create([
+            'code' => 'salon',
+            'name' => 'Ø§Ù„ØµØ§Ù„ÙˆÙ†',
+            'is_active' => true,
+        ]);
+
+        return [$customer, $department];
+    }
+
+    /**
+     * @return array{0: int, 1: CatalogItem}
+     */
+    private function createAppointmentAndService(): array
+    {
+        [$customer, $department] = $this->createCustomerAndDepartment();
+
+        $category = Category::factory()->create([
+            'department_id' => $department->id,
+            'name' => 'Ø§Ù„Ø´Ø¹Ø±',
+            'is_active' => true,
+        ]);
+
+        $service = CatalogItem::factory()->create([
+            'category_id' => $category->id,
+            'type' => CatalogItem::TYPE_SERVICE,
+            'name' => 'Ù‚Øµ Ø´Ø¹Ø±',
+            'price_type' => CatalogItem::PRICE_TYPE_FIXED,
+            'price' => 25000,
+            'duration_minutes' => 30,
+            'is_active' => true,
+        ]);
+
+        $appointmentId = DB::table('appointments')->insertGetId(
+            $this->appointmentPayload(
+                customerId: $customer->id,
+                departmentId: $department->id,
+            )
+        );
+
+        return [$appointmentId, $service];
+    }
+
+    /**
+     * @return array{0: int, 1: CatalogItem}
+     */
+    private function createAppointmentItemAndService(): array
+    {
+        [$appointmentId, $service] = $this->createAppointmentAndService();
+
+        $appointmentItemId = DB::table('appointment_items')->insertGetId(
+            $this->appointmentItemPayload(
+                appointmentId: $appointmentId,
+                catalogItem: $service,
+            )
+        );
+
+        return [$appointmentItemId, $service];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function appointmentPayload(
+        int $customerId,
+        int $departmentId,
+        string $status = 'pending',
+    ): array {
+        $reference = 'GL-TEST-'
+            .str_pad(
+                (string) self::$referenceSequence++,
+                6,
+                '0',
+                STR_PAD_LEFT
+            );
+
+        return [
+            'reference' => $reference,
+            'customer_id' => $customerId,
+            'department_id' => $departmentId,
+            'status' => $status,
+            'requested_start_at' => now()->addDay(),
+            'confirmed_start_at' => null,
+            'customer_notes' => null,
+            'admin_notes' => null,
+            'cancelled_by' => null,
+            'cancellation_reason' => null,
+            'cancelled_at' => null,
+            'completed_at' => null,
+            'no_show_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function appointmentItemPayload(
+        int $appointmentId,
+        CatalogItem $catalogItem,
+    ): array {
+        return [
+            'appointment_id' => $appointmentId,
+            'catalog_item_id' => $catalogItem->id,
+            'item_type' => $catalogItem->type,
+            'item_name' => $catalogItem->name,
+            'price_type' => $catalogItem->price_type,
+            'unit_price' => $catalogItem->price,
+            'quantity' => 1,
+            'duration_minutes' => $catalogItem->duration_minutes,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function appointmentServicePayload(
+        int $appointmentItemId,
+        CatalogItem $service,
+    ): array {
+        return [
+            'appointment_item_id' => $appointmentItemId,
+            'service_id' => $service->id,
+            'service_name' => $service->name,
+            'quantity' => 1,
+            'duration_minutes' => $service->duration_minutes ?? 30,
+            'unit_price' => $service->price,
+            'scheduled_start_at' => null,
+            'scheduled_end_at' => null,
+            'notes' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+}
+
+
+
+================ APPOINTMENT ROUTES ================
+
+
+  routes\api.php:1:<?php
+  routes\api.php:2:
+  routes\api.php:3:use App\Http\Controllers\Api\Customer\Chat\CustomerChatController;
+> routes\api.php:4:use App\Http\Controllers\Api\Admin\AdminAppointmentController;
+  routes\api.php:5:use App\Http\Controllers\Api\Admin\AdminGiftCardOrderController;
+  routes\api.php:6:use App\Http\Controllers\Api\Admin\CatalogItemController;
+  routes\api.php:7:use App\Http\Controllers\Api\Admin\CatalogItemImageController;
+  routes\api.php:8:use App\Http\Controllers\Api\Admin\CategoryController;
+  routes\api.php:9:use App\Http\Controllers\Api\Admin\CouponController;
+  routes\api.php:10:use App\Http\Controllers\Api\Admin\CustomerController;
+  routes\api.php:11:use App\Http\Controllers\Api\Admin\DashboardController;
+  routes\api.php:12:use App\Http\Controllers\Api\Admin\PackageItemController;
+> routes\api.php:13:use App\Http\Controllers\Api\Appointments\AppointmentController;
+  routes\api.php:14:use App\Http\Controllers\Api\Customer\GiftCards\CustomerGiftCardDesignController;
+  routes\api.php:15:use App\Http\Controllers\Api\Admin\AdminGiftCardTransactionController;
+  routes\api.php:16:use App\Http\Controllers\Api\Auth\AuthController;
+  routes\api.php:17:use App\Http\Controllers\Api\Customer\Auth\CustomerAuthController;
+  routes\api.php:18:use App\Http\Controllers\Api\Customer\Catalog\CustomerCatalogController;
+  routes\api.php:19:use App\Http\Controllers\Api\Customer\Favorite\CustomerFavoriteController;
+  routes\api.php:20:use App\Http\Controllers\Api\Customer\GiftCards\CustomerGiftCardController;
+  routes\api.php:21:use App\Http\Controllers\Api\Customer\GiftCards\CustomerGiftCardOrderController;
+  routes\api.php:22:use App\Http\Controllers\Api\Customer\GiftCards\CustomerGiftCardTransactionController;
+  routes\api.php:23:use App\Http\Controllers\Api\Customer\Profile\CustomerProfileController;
+  routes\api.php:24:use Illuminate\Support\Facades\Route;
+  routes\api.php:25:use App\Http\Controllers\Api\Admin\GiftCardDesignController;
+  routes\api.php:240:
+  routes\api.php:241:        Route::get(
+  routes\api.php:242:            'gift-cards/{giftCard}/transactions',
+  routes\api.php:243:            [CustomerGiftCardTransactionController::class, 'index']
+  routes\api.php:244:        )->name('customer.gift-cards.transactions.index');
+  routes\api.php:245:    });
+  routes\api.php:246:/*
+  routes\api.php:247:|--------------------------------------------------------------------------
+> routes\api.php:248:| Customer Appointment Routes
+  routes\api.php:249:|--------------------------------------------------------------------------
+  routes\api.php:250:|
+  routes\api.php:251:| هذه المسارات خاصة بالزبونة فقط.
+  routes\api.php:252:| لا يجب وضعها داخل مجموعة admin.
+  routes\api.php:253:|
+  routes\api.php:254:*/
+> routes\api.php:255:Route::prefix('appointments')
+  routes\api.php:256:    ->middleware([
+  routes\api.php:257:        'auth:sanctum',
+  routes\api.php:258:        'role:customer',
+  routes\api.php:259:    ])
+  routes\api.php:260:    ->group(function (): void {
+  routes\api.php:261:        Route::get(
+  routes\api.php:262:            '/',
+> routes\api.php:263:            [AppointmentController::class, 'index']
+> routes\api.php:264:        )->name('appointments.index');
+  routes\api.php:265:
+  routes\api.php:266:        Route::post(
+  routes\api.php:267:            '/',
+> routes\api.php:268:            [AppointmentController::class, 'store']
+> routes\api.php:269:        )->name('appointments.store');
+  routes\api.php:270:
+  routes\api.php:271:        Route::get(
+> routes\api.php:272:            '{appointment}',
+> routes\api.php:273:            [AppointmentController::class, 'show']
+  routes\api.php:274:        )
+> routes\api.php:275:            ->whereNumber('appointment')
+> routes\api.php:276:            ->name('appointments.show');
+  routes\api.php:277:
+  routes\api.php:278:        Route::post(
+> routes\api.php:279:            '{appointment}/cancel',
+> routes\api.php:280:            [AppointmentController::class, 'cancel']
+  routes\api.php:281:        )
+> routes\api.php:282:            ->whereNumber('appointment')
+> routes\api.php:283:            ->name('appointments.cancel');
+  routes\api.php:284:
+  routes\api.php:285:
+  routes\api.php:286:
+  routes\api.php:287:            
+  routes\api.php:288:    });
+  routes\api.php:289:
+  routes\api.php:290:/*
+  routes\api.php:291:|--------------------------------------------------------------------------
+  routes\api.php:292:| Admin Routes
+  routes\api.php:293:|--------------------------------------------------------------------------
+  routes\api.php:294:|
+  routes\api.php:295:| جميع المسارات هنا خاصة بالمديرة فقط.
+  routes\api.php:402:
+  routes\api.php:403:        Route::get(
+  routes\api.php:404:            'customers/{customer}',
+  routes\api.php:405:            [CustomerController::class, 'show']
+  routes\api.php:406:        )->name('customers.show');
+  routes\api.php:407:
+  routes\api.php:408:        /*
+  routes\api.php:409:        |--------------------------------------------------------------------------
+> routes\api.php:410:        | Appointment Management
+  routes\api.php:411:        |--------------------------------------------------------------------------
+  routes\api.php:412:        */
+  routes\api.php:413:
+  routes\api.php:414:        Route::get(
+> routes\api.php:415:            'appointments',
+> routes\api.php:416:            [AdminAppointmentController::class, 'index']
+> routes\api.php:417:        )->name('admin.appointments.index');
+  routes\api.php:418:
+  routes\api.php:419:        Route::get(
+> routes\api.php:420:            'appointments/{appointment}',
+> routes\api.php:421:            [AdminAppointmentController::class, 'show']
+> routes\api.php:422:        )->name('admin.appointments.show');
+  routes\api.php:423:
+  routes\api.php:424:        Route::patch(
+> routes\api.php:425:            'appointments/{appointment}',
+> routes\api.php:426:            [AdminAppointmentController::class, 'update']
+> routes\api.php:427:        )->name('admin.appointments.update');
+  routes\api.php:428:
+  routes\api.php:429:        Route::post(
+> routes\api.php:430:            'appointments/{appointment}/confirm',
+> routes\api.php:431:            [AdminAppointmentController::class, 'confirm']
+> routes\api.php:432:        )->name('admin.appointments.confirm');
+  routes\api.php:433:
+  routes\api.php:434:        Route::post(
+> routes\api.php:435:            'appointments/{appointment}/start',
+> routes\api.php:436:            [AdminAppointmentController::class, 'start']
+> routes\api.php:437:        )->name('admin.appointments.start');
+  routes\api.php:438:
+  routes\api.php:439:        Route::post(
+> routes\api.php:440:            'appointments/{appointment}/complete',
+> routes\api.php:441:            [AdminAppointmentController::class, 'complete']
+> routes\api.php:442:        )->name('admin.appointments.complete');
+  routes\api.php:443:
+  routes\api.php:444:        Route::post(
+> routes\api.php:445:            'appointments/{appointment}/cancel',
+> routes\api.php:446:            [AdminAppointmentController::class, 'cancel']
+> routes\api.php:447:        )->name('admin.appointments.cancel');
+  routes\api.php:448:
+  routes\api.php:449:        Route::post(
+> routes\api.php:450:            'appointments/{appointment}/no-show',
+> routes\api.php:451:            [AdminAppointmentController::class, 'noShow']
+> routes\api.php:452:        )->name('admin.appointments.no-show');
+  routes\api.php:453:
+  routes\api.php:454:        /*
+  routes\api.php:455:        |--------------------------------------------------------------------------
+  routes\api.php:456:        | Categories
+  routes\api.php:457:        |--------------------------------------------------------------------------
+  routes\api.php:458:        */
+  routes\api.php:459:
+  routes\api.php:460:        Route::delete(
+  routes\api.php:461:            'categories/{category}/image',
+  routes\api.php:462:            [CategoryController::class, 'destroyImage']
+  routes\api.php:463:        )->name('categories.image.destroy');
+  routes\api.php:464:
+
+
+

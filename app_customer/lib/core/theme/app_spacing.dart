@@ -14,20 +14,16 @@ abstract final class AppSpacing {
   static const double huge = 40;
   static const double giant = 48;
 
-  static const EdgeInsets screenPadding =
-      EdgeInsets.symmetric(
+  static const EdgeInsets screenPadding = EdgeInsets.symmetric(
     horizontal: 20,
     vertical: 16,
   );
 
-  static const EdgeInsets cardPadding =
-      EdgeInsets.all(16);
+  static const EdgeInsets cardPadding = EdgeInsets.all(16);
 
-  static const EdgeInsets dialogPadding =
-      EdgeInsets.all(24);
+  static const EdgeInsets dialogPadding = EdgeInsets.all(24);
 
-  static const EdgeInsets buttonPadding =
-      EdgeInsets.symmetric(
+  static const EdgeInsets buttonPadding = EdgeInsets.symmetric(
     horizontal: 20,
     vertical: 14,
   );

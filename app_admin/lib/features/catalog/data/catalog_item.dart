@@ -49,12 +49,11 @@ class CatalogItem {
       }
     }
 
-    final List<CatalogImage> sortedImages =
-        List<CatalogImage>.from(images)
-          ..sort(
-            (CatalogImage first, CatalogImage second) =>
-                first.sortOrder.compareTo(second.sortOrder),
-          );
+    final List<CatalogImage> sortedImages = List<CatalogImage>.from(images)
+      ..sort(
+        (CatalogImage first, CatalogImage second) =>
+            first.sortOrder.compareTo(second.sortOrder),
+      );
 
     return sortedImages.first;
   }
@@ -75,9 +74,7 @@ class CatalogItem {
     return '${currentPrice.toStringAsFixed(2)} د.ع';
   }
 
-  CatalogItem copyWith({
-    bool? isFavorite,
-  }) {
+  CatalogItem copyWith({bool? isFavorite}) {
     return CatalogItem(
       id: id,
       categoryId: categoryId,
@@ -111,32 +108,28 @@ class CatalogItem {
       durationMinutes: _toNullableInt(json['duration_minutes']),
       isActive: _toBool(json['is_active'], fallback: true),
       isFavorite: _toBool(json['is_favorite']),
-      category:
-          categoryJson is Map<String, dynamic>
-              ? CatalogCategory.fromJson(categoryJson)
-              : categoryJson is Map
-              ? CatalogCategory.fromJson(
-                categoryJson.map(
-                  (dynamic key, dynamic value) =>
-                      MapEntry(key.toString(), value),
-                ),
-              )
-              : null,
-      images:
-          imagesJson is List
-              ? imagesJson
-                  .whereType<Map>()
-                  .map(
-                    (Map<dynamic, dynamic> image) =>
-                        CatalogImage.fromJson(
-                          image.map(
-                            (dynamic key, dynamic value) =>
-                                MapEntry(key.toString(), value),
-                          ),
-                        ),
-                  )
-                  .toList(growable: false)
-              : const <CatalogImage>[],
+      category: categoryJson is Map<String, dynamic>
+          ? CatalogCategory.fromJson(categoryJson)
+          : categoryJson is Map
+          ? CatalogCategory.fromJson(
+              categoryJson.map(
+                (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+              ),
+            )
+          : null,
+      images: imagesJson is List
+          ? imagesJson
+                .whereType<Map>()
+                .map(
+                  (Map<dynamic, dynamic> image) => CatalogImage.fromJson(
+                    image.map(
+                      (dynamic key, dynamic value) =>
+                          MapEntry(key.toString(), value),
+                    ),
+                  ),
+                )
+                .toList(growable: false)
+          : const <CatalogImage>[],
     );
   }
 

@@ -76,6 +76,20 @@ class CustomerAuthRepository {
     return _readValidatedCustomer(response);
   }
 
+Future<void> changePassword({
+  required String currentPassword,
+  required String password,
+  required String passwordConfirmation,
+}) async {
+  await _apiClient.post(
+    '/customer/auth/change-password',
+    data: {
+      'current_password': currentPassword,
+      'password': password,
+      'password_confirmation': passwordConfirmation,
+    },
+  );
+}
   Future<CustomerUser> updateAvatar({required File image}) async {
     if (!await image.exists()) {
       throw const ApiException(message: 'الصورة المختارة غير موجودة.');

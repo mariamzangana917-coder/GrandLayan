@@ -8,11 +8,7 @@ final catalogRepositoryProvider = Provider<CatalogRepository>(
 );
 
 class CatalogFilter {
-  const CatalogFilter({
-    this.department,
-    this.categoryId,
-    this.type,
-  });
+  const CatalogFilter({this.department, this.categoryId, this.type});
 
   final String? department;
   final int? categoryId;
@@ -31,55 +27,40 @@ class CatalogFilter {
   }
 
   @override
-  int get hashCode => Object.hash(
-        department,
-        categoryId,
-        type,
-      );
+  int get hashCode => Object.hash(department, categoryId, type);
 }
 
 final catalogItemsProvider =
-    FutureProvider.family<List<CatalogItem>, CatalogFilter>(
-  (ref, filter) async {
-    final repository = ref.watch(catalogRepositoryProvider);
+    FutureProvider.family<List<CatalogItem>, CatalogFilter>((
+      ref,
+      filter,
+    ) async {
+      final repository = ref.watch(catalogRepositoryProvider);
 
-    return repository.getCatalogItems(
-      department: filter.department,
-      categoryId: filter.categoryId,
-      type: filter.type,
-    );
-  },
-);
+      return repository.getCatalogItems(
+        department: filter.department,
+        categoryId: filter.categoryId,
+        type: filter.type,
+      );
+    });
 
-final catalogItemDetailsProvider =
-    FutureProvider.family<CatalogItem, int>(
-  (ref, catalogItemId) async {
-    final repository = ref.watch(catalogRepositoryProvider);
+final catalogItemDetailsProvider = FutureProvider.family<CatalogItem, int>((
+  ref,
+  catalogItemId,
+) async {
+  final repository = ref.watch(catalogRepositoryProvider);
 
-    return repository.getCatalogItem(catalogItemId);
-  },
-);
+  return repository.getCatalogItem(catalogItemId);
+});
 
-final salonCatalogProvider = FutureProvider<List<CatalogItem>>(
-  (ref) {
-    return ref.watch(
-      catalogItemsProvider(
-        const CatalogFilter(
-          department: 'salon',
-        ),
-      ).future,
-    );
-  },
-);
+final salonCatalogProvider = FutureProvider<List<CatalogItem>>((ref) {
+  return ref.watch(
+    catalogItemsProvider(const CatalogFilter(department: 'salon')).future,
+  );
+});
 
-final clinicCatalogProvider = FutureProvider<List<CatalogItem>>(
-  (ref) {
-    return ref.watch(
-      catalogItemsProvider(
-        const CatalogFilter(
-          department: 'clinic',
-        ),
-      ).future,
-    );
-  },
-);
+final clinicCatalogProvider = FutureProvider<List<CatalogItem>>((ref) {
+  return ref.watch(
+    catalogItemsProvider(const CatalogFilter(department: 'clinic')).future,
+  );
+});

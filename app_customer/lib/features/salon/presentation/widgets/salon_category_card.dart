@@ -88,14 +88,6 @@ class SalonCategoryCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 5),
-                      Text(
-                        _itemsLabel(itemCount),
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -111,21 +103,5 @@ class SalonCategoryCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _itemsLabel(int count) {
-    if (count == 1) {
-      return 'خدمة واحدة';
-    }
-
-    if (count == 2) {
-      return 'خدمتان';
-    }
-
-    if (count >= 3 && count <= 10) {
-      return '$count خدمات';
-    }
-
-    return '$count خدمة';
   }
 }

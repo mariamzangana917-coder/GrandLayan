@@ -16,15 +16,13 @@ class CatalogService {
         '/admin/catalog-items',
         queryParameters: {
           'department': department,
-          if (type != null) 'type': type,
+          'type': ?type,
           'per_page': 100,
         },
       );
 
       if (response.data is! Map) {
-        throw const CatalogException(
-          'استجابة غير صالحة من الخادم.',
-        );
+        throw const CatalogException('استجابة غير صالحة من الخادم.');
       }
 
       final page = CatalogPage.fromJson(
@@ -48,33 +46,23 @@ class CatalogService {
         return item.name.toLowerCase().startsWith(query) ||
             item.name.toLowerCase().contains(query) ||
             item.categoryName.toLowerCase().contains(query) ||
-            (item.description?.toLowerCase().contains(query) ??
-                false);
+            (item.description?.toLowerCase().contains(query) ?? false);
       }).toList();
 
-      return CatalogPage(
-        items: filtered,
-        total: filtered.length,
-      );
+      return CatalogPage(items: filtered, total: filtered.length);
     } on DioException catch (error) {
-      throw CatalogException(
-        _message(error, 'تعذر تحميل الخدمات والبكجات.'),
-      );
+      throw CatalogException(_message(error, 'تعذر تحميل الخدمات والبكجات.'));
     }
   }
 
   Future<CatalogItem> fetchItem(int id) async {
     try {
-      final response = await ApiClient.dio.get(
-        '/admin/catalog-items/$id',
-      );
+      final response = await ApiClient.dio.get('/admin/catalog-items/$id');
 
       final root = response.data;
 
       if (root is! Map || root['data'] is! Map) {
-        throw const CatalogException(
-          'تعذر قراءة تفاصيل العنصر.',
-        );
+        throw const CatalogException('تعذر قراءة تفاصيل العنصر.');
       }
 
       return CatalogItem.fromJson(
@@ -82,22 +70,15 @@ class CatalogService {
         apiBaseUrl: ApiClient.dio.options.baseUrl,
       );
     } on DioException catch (error) {
-      throw CatalogException(
-        _message(error, 'تعذر تحميل تفاصيل العنصر.'),
-      );
+      throw CatalogException(_message(error, 'تعذر تحميل تفاصيل العنصر.'));
     }
   }
 
-  Future<List<CatalogCategory>> fetchCategories(
-    String department,
-  ) async {
+  Future<List<CatalogCategory>> fetchCategories(String department) async {
     try {
       final response = await ApiClient.dio.get(
         '/admin/categories',
-        queryParameters: {
-          'department': department,
-          'is_active': true,
-        },
+        queryParameters: {'department': department, 'is_active': true},
       );
 
       final root = response.data;
@@ -109,15 +90,11 @@ class CatalogService {
       return (root['data'] as List)
           .whereType<Map>()
           .map(
-            (raw) => CatalogCategory.fromJson(
-              Map<String, dynamic>.from(raw),
-            ),
+            (raw) => CatalogCategory.fromJson(Map<String, dynamic>.from(raw)),
           )
           .toList();
     } on DioException catch (error) {
-      throw CatalogException(
-        _message(error, 'تعذر تحميل التصنيفات.'),
-      );
+      throw CatalogException(_message(error, 'تعذر تحميل التصنيفات.'));
     }
   }
 
@@ -149,38 +126,26 @@ class CatalogService {
         },
       );
     } on DioException catch (error) {
-      throw CatalogException(
-        _message(error, 'تعذر حفظ التعديلات.'),
-      );
+      throw CatalogException(_message(error, 'تعذر حفظ التعديلات.'));
     }
   }
 
   Future<void> deleteItem(int id) async {
     try {
-      await ApiClient.dio.delete(
-        '/admin/catalog-items/$id',
-      );
+      await ApiClient.dio.delete('/admin/catalog-items/$id');
     } on DioException catch (error) {
-      throw CatalogException(
-        _message(error, 'تعذر حذف العنصر.'),
-      );
+      throw CatalogException(_message(error, 'تعذر حذف العنصر.'));
     }
   }
 
-  Future<void> uploadImages(
-    int itemId,
-    List<String> paths,
-  ) async {
+  Future<void> uploadImages(int itemId, List<String> paths) async {
     if (paths.isEmpty) return;
 
     final formData = FormData();
 
     for (final path in paths) {
       formData.files.add(
-        MapEntry(
-          'images[]',
-          await MultipartFile.fromFile(path),
-        ),
+        MapEntry('images[]', await MultipartFile.fromFile(path)),
       );
     }
 
@@ -190,52 +155,37 @@ class CatalogService {
         data: formData,
       );
     } on DioException catch (error) {
-      throw CatalogException(
-        _message(error, 'تعذر رفع الصور.'),
-      );
+      throw CatalogException(_message(error, 'تعذر رفع الصور.'));
     }
   }
 
-  Future<void> deleteImage(
-    int itemId,
-    int imageId,
-  ) async {
+  Future<void> deleteImage(int itemId, int imageId) async {
     try {
       await ApiClient.dio.delete(
         '/admin/catalog-items/$itemId/images/$imageId',
       );
     } on DioException catch (error) {
-      throw CatalogException(
-        _message(error, 'تعذر حذف الصورة.'),
-      );
+      throw CatalogException(_message(error, 'تعذر حذف الصورة.'));
     }
   }
 
- Future<void> setMainImage(
-  int itemId,
-  int imageId,
-) async {
-  try {
-    await ApiClient.dio.patch(
-      '/admin/catalog-items/$itemId/images/$imageId',
-      data: {'is_primary': true},
-    );
-  } on DioException catch (error) {
-    throw CatalogException(
-      _message(error, 'تعذر تعيين الصورة الرئيسية.'),
-    );
+  Future<void> setMainImage(int itemId, int imageId) async {
+    try {
+      await ApiClient.dio.patch(
+        '/admin/catalog-items/$itemId/images/$imageId',
+        data: {'is_primary': true},
+      );
+    } on DioException catch (error) {
+      throw CatalogException(_message(error, 'تعذر تعيين الصورة الرئيسية.'));
+    }
   }
-}
 
   static String? _nullable(String? value) {
     final text = value?.trim();
     return text == null || text.isEmpty ? null : text;
   }
 
-  static String _message(
-    DioException error,
-    String fallback,
-  ) {
+  static String _message(DioException error, String fallback) {
     final data = error.response?.data;
 
     if (data is Map) {

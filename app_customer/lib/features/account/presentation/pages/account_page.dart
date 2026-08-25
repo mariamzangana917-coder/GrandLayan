@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../../../core/theme/app_colors.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/luxury_theme_toggle.dart';
 import '../../../../core/network/api_url.dart';
 import '../../../auth/providers/customer_auth_provider.dart';
 import 'edit_profile_page.dart';
@@ -219,7 +220,7 @@ class AccountPage extends ConsumerWidget {
                     secondaryTextColor: secondaryTextColor,
                     borderColor: borderColor,
                     onTap: () {
-                      _showTemporaryMessage(context, 'مواعيدي');
+                      context.pushNamed('customer-appointments');
                     },
                   ),
                   _AccountMenuTile(
@@ -256,7 +257,7 @@ class AccountPage extends ConsumerWidget {
                     secondaryTextColor: secondaryTextColor,
                     borderColor: borderColor,
                     onTap: () {
-                      _showTemporaryMessage(context, 'بطاقات الهدايا');
+                      context.pushNamed('gift-cards');
                     },
                   ),
                   _AccountMenuTile(
@@ -272,6 +273,18 @@ class AccountPage extends ConsumerWidget {
                     },
                   ),
                   _AccountMenuTile(
+                    title: 'الوضع الليلي',
+                    subtitle: isDark ? 'مفعّل الآن' : 'غير مفعّل',
+                    icon: isDark
+                        ? Icons.dark_mode_rounded
+                        : Icons.light_mode_rounded,
+                    iconColor: AppColors.gold,
+                    primaryTextColor: primaryTextColor,
+                    secondaryTextColor: secondaryTextColor,
+                    borderColor: borderColor,
+                    trailing: _ThemeStatusControl(isDark: isDark),
+                  ),
+                  _AccountMenuTile(
                     title: 'الخصوصية والأمان',
                     subtitle: 'إعدادات الحساب وحماية البيانات',
                     icon: Icons.lock_outline_rounded,
@@ -281,7 +294,7 @@ class AccountPage extends ConsumerWidget {
                     borderColor: borderColor,
                     showDivider: false,
                     onTap: () {
-                      _showTemporaryMessage(context, 'الخصوصية والأمان');
+                      context.pushNamed('privacy-security');
                     },
                   ),
                 ],
@@ -537,7 +550,8 @@ class _AccountMenuTile extends StatelessWidget {
     required this.primaryTextColor,
     required this.secondaryTextColor,
     required this.borderColor,
-    required this.onTap,
+    this.onTap,
+    this.trailing,
     this.showDivider = true,
   });
 
@@ -548,7 +562,8 @@ class _AccountMenuTile extends StatelessWidget {
   final Color primaryTextColor;
   final Color secondaryTextColor;
   final Color borderColor;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final Widget? trailing;
   final bool showDivider;
 
   @override
@@ -599,11 +614,12 @@ class _AccountMenuTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: secondaryTextColor,
-                    size: 15,
-                  ),
+                  trailing ??
+                      Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: secondaryTextColor,
+                        size: 15,
+                      ),
                 ],
               ),
             ),
@@ -612,6 +628,89 @@ class _AccountMenuTile extends StatelessWidget {
                 padding: const EdgeInsetsDirectional.only(start: 70),
                 child: Divider(height: 1, thickness: 1, color: borderColor),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeStatusControl extends StatelessWidget {
+  const _ThemeStatusControl({required this.isDark});
+
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    const controlWidth = 54.0;
+    const controlHeight = 32.0;
+    const thumbSize = 26.0;
+
+    final trackColor = isDark ? AppColors.gold : const Color(0xFFE5E7EB);
+
+    final thumbIconColor = isDark ? AppColors.gold : const Color(0xFF6B7280);
+
+    return Semantics(
+      button: true,
+      toggled: isDark,
+      label: isDark ? 'إيقاف الوضع الليلي' : 'تفعيل الوضع الليلي',
+      child: SizedBox(
+        width: controlWidth,
+        height: controlHeight,
+        child: Stack(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              width: controlWidth,
+              height: controlHeight,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: trackColor,
+                borderRadius: BorderRadius.circular(controlHeight / 2),
+                border: Border.all(
+                  color: isDark ? AppColors.gold : const Color(0xFFD1D5DB),
+                ),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                alignment: isDark
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Container(
+                  width: thumbSize,
+                  height: thumbSize,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.14),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                    size: 15,
+                    color: thumbIconColor,
+                  ),
+                ),
+              ),
+            ),
+
+            // نبقي نفس ربط تغيير الثيم الموجود بالمشروع،
+            // لكن نخفي شكله القديم ونستخدمه كمنطقة ضغط فقط.
+            const Positioned.fill(
+              child: ExcludeSemantics(
+                child: Opacity(
+                  opacity: 0,
+                  child: LuxuryThemeToggle(size: controlWidth),
+                ),
+              ),
+            ),
           ],
         ),
       ),

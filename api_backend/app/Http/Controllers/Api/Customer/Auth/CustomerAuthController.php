@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Customer\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Customer\Auth\ChangeCustomerPasswordRequest;
 use App\Http\Requests\Api\Customer\Auth\CustomerLoginRequest;
 use App\Http\Requests\Api\Customer\Auth\CustomerRegisterRequest;
 use App\Models\User;
@@ -59,7 +60,7 @@ class CustomerAuthController extends Controller
             ) {
                 throw ValidationException::withMessages([
                     'phone' => [
-                        'رقم الهاتف أو البريد الإلكتروني مستخدم مسبقًا.',
+                        'ÃƒËœÃ‚Â±Ãƒâ„¢Ã¢â‚¬Å¡Ãƒâ„¢Ã¢â‚¬Â¦ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â¡ÃƒËœÃ‚Â§ÃƒËœÃ‚ÂªÃƒâ„¢Ã‚Â ÃƒËœÃ‚Â£Ãƒâ„¢Ã‹â€  ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â±Ãƒâ„¢Ã…Â ÃƒËœÃ‚Â¯ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¥Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã†â€™ÃƒËœÃ‚ÂªÃƒËœÃ‚Â±Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã¢â‚¬Â Ãƒâ„¢Ã…Â  Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â³ÃƒËœÃ‚ÂªÃƒËœÃ‚Â®ÃƒËœÃ‚Â¯Ãƒâ„¢Ã¢â‚¬Â¦ Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚Â³ÃƒËœÃ‚Â¨Ãƒâ„¢Ã¢â‚¬Å¡Ãƒâ„¢Ã¢â‚¬Â¹ÃƒËœÃ‚Â§.',
                     ],
                 ]);
             }
@@ -71,7 +72,7 @@ class CustomerAuthController extends Controller
         $customer = $result['customer'];
 
         return response()->json([
-            'message' => 'تم إنشاء الحساب بنجاح.',
+            'message' => 'ÃƒËœÃ‚ÂªÃƒâ„¢Ã¢â‚¬Â¦ ÃƒËœÃ‚Â¥Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â´ÃƒËœÃ‚Â§ÃƒËœÃ‚Â¡ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â­ÃƒËœÃ‚Â³ÃƒËœÃ‚Â§ÃƒËœÃ‚Â¨ ÃƒËœÃ‚Â¨Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â¬ÃƒËœÃ‚Â§ÃƒËœÃ‚Â­.',
             'data' => [
                 'user' => $this->customerPayload($customer),
                 'token' => $result['token'],
@@ -111,7 +112,7 @@ class CustomerAuthController extends Controller
         ) {
             throw ValidationException::withMessages([
                 'login' => [
-                    'بيانات تسجيل الدخول غير صحيحة.',
+                    'ÃƒËœÃ‚Â¨Ãƒâ„¢Ã…Â ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â§ÃƒËœÃ‚Âª ÃƒËœÃ‚ÂªÃƒËœÃ‚Â³ÃƒËœÃ‚Â¬Ãƒâ„¢Ã…Â Ãƒâ„¢Ã¢â‚¬Å¾ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¯ÃƒËœÃ‚Â®Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã¢â‚¬Å¾ ÃƒËœÃ‚ÂºÃƒâ„¢Ã…Â ÃƒËœÃ‚Â± ÃƒËœÃ‚ÂµÃƒËœÃ‚Â­Ãƒâ„¢Ã…Â ÃƒËœÃ‚Â­ÃƒËœÃ‚Â©.',
                 ],
             ]);
         }
@@ -124,7 +125,7 @@ class CustomerAuthController extends Controller
             ->plainTextToken;
 
         return response()->json([
-            'message' => 'تم تسجيل الدخول بنجاح.',
+            'message' => 'ÃƒËœÃ‚ÂªÃƒâ„¢Ã¢â‚¬Â¦ ÃƒËœÃ‚ÂªÃƒËœÃ‚Â³ÃƒËœÃ‚Â¬Ãƒâ„¢Ã…Â Ãƒâ„¢Ã¢â‚¬Å¾ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¯ÃƒËœÃ‚Â®Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã¢â‚¬Å¾ ÃƒËœÃ‚Â¨Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â¬ÃƒËœÃ‚Â§ÃƒËœÃ‚Â­.',
             'data' => [
                 'user' => $this->customerPayload($customer),
                 'token' => $token,
@@ -149,7 +150,7 @@ class CustomerAuthController extends Controller
             $customer?->currentAccessToken()?->delete();
 
             return response()->json([
-                'message' => 'هذا الحساب غير مصرح له بالدخول.',
+                'message' => 'Ãƒâ„¢Ã¢â‚¬Â¡ÃƒËœÃ‚Â°ÃƒËœÃ‚Â§ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â­ÃƒËœÃ‚Â³ÃƒËœÃ‚Â§ÃƒËœÃ‚Â¨ ÃƒËœÃ‚ÂºÃƒâ„¢Ã…Â ÃƒËœÃ‚Â± Ãƒâ„¢Ã¢â‚¬Â¦ÃƒËœÃ‚ÂµÃƒËœÃ‚Â±ÃƒËœÃ‚Â­ Ãƒâ„¢Ã¢â‚¬Å¾Ãƒâ„¢Ã¢â‚¬Â¡ ÃƒËœÃ‚Â¨ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â¯ÃƒËœÃ‚Â®Ãƒâ„¢Ã‹â€ Ãƒâ„¢Ã¢â‚¬Å¾.',
             ], 403);
         }
 
@@ -161,6 +162,34 @@ class CustomerAuthController extends Controller
     }
 
     /**
+     * Change authenticated customer's password.
+     */
+    public function changePassword(
+        ChangeCustomerPasswordRequest $request
+    ): JsonResponse {
+        /** @var User $customer */
+        $customer = $request->user();
+
+        if (! Hash::check(
+            $request->input('current_password'),
+            $customer->password
+        )) {
+            throw ValidationException::withMessages([
+                'current_password' => [
+                    'كلمة المرور الحالية غير صحيحة.',
+                ],
+            ]);
+        }
+
+        $customer->password = $request->input('password');
+        $customer->save();
+
+        return response()->json([
+            'message' => 'تم تغيير كلمة المرور بنجاح.',
+        ]);
+    }
+
+/**
      * Logout current device only.
      */
     public function logout(Request $request): JsonResponse
@@ -168,7 +197,7 @@ class CustomerAuthController extends Controller
         $request->user()?->currentAccessToken()?->delete();
 
         return response()->json([
-            'message' => 'تم تسجيل الخروج بنجاح.',
+            'message' => 'ÃƒËœÃ‚ÂªÃƒâ„¢Ã¢â‚¬Â¦ ÃƒËœÃ‚ÂªÃƒËœÃ‚Â³ÃƒËœÃ‚Â¬Ãƒâ„¢Ã…Â Ãƒâ„¢Ã¢â‚¬Å¾ ÃƒËœÃ‚Â§Ãƒâ„¢Ã¢â‚¬Å¾ÃƒËœÃ‚Â®ÃƒËœÃ‚Â±Ãƒâ„¢Ã‹â€ ÃƒËœÃ‚Â¬ ÃƒËœÃ‚Â¨Ãƒâ„¢Ã¢â‚¬Â ÃƒËœÃ‚Â¬ÃƒËœÃ‚Â§ÃƒËœÃ‚Â­.',
         ]);
     }
 
@@ -196,3 +225,4 @@ class CustomerAuthController extends Controller
         ];
     }
 }
+

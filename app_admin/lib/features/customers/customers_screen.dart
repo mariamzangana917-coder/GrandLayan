@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import '../../core/network/api_url.dart';
 import 'package:flutter/material.dart';
 
 import 'data/customer_model.dart';
@@ -462,20 +462,69 @@ class _CustomersScreenState extends State<CustomersScreen> {
     required AdminCustomer customer,
     required Color primaryTextColor,
   }) {
-    final firstLetter = customer.name.isNotEmpty
+    final String firstLetter = customer.name.isNotEmpty
         ? customer.name.characters.first
         : 'ع';
+
+    final String? avatarUrl = ApiUrl.resolveStorageUrl(customer.avatar);
 
     return Container(
       width: 48,
       height: 48,
-      alignment: Alignment.center,
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: _gold.withValues(alpha: 0.14),
         shape: BoxShape.circle,
+        border: Border.all(color: _gold.withValues(alpha: 0.40)),
       ),
+      child: ClipOval(
+        child: avatarUrl == null
+            ? _buildAvatarLetter(firstLetter)
+            : Image.network(
+                avatarUrl,
+                width: 44,
+                height: 44,
+                fit: BoxFit.cover,
+                errorBuilder:
+                    (
+                      BuildContext context,
+                      Object error,
+                      StackTrace? stackTrace,
+                    ) {
+                      return _buildAvatarLetter(firstLetter);
+                    },
+                loadingBuilder:
+                    (
+                      BuildContext context,
+                      Widget child,
+                      ImageChunkEvent? loadingProgress,
+                    ) {
+                      if (loadingProgress == null) {
+                        return child;
+                      }
+
+                      return const Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _gold,
+                          ),
+                        ),
+                      );
+                    },
+              ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarLetter(String letter) {
+    return Container(
+      alignment: Alignment.center,
+      color: _gold.withValues(alpha: 0.14),
       child: Text(
-        firstLetter,
+        letter,
         style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w900,

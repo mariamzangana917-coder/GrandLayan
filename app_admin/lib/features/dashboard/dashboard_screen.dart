@@ -5,6 +5,11 @@ import '../appointments/appointments_screen.dart';
 import 'data/dashboard_model.dart';
 import 'data/dashboard_service.dart';
 import '../catalog/catalog_screen.dart';
+import '../gift_cards/presentation/gift_cards_screen.dart';
+import '../coupons/presentation/promotion_management_screen.dart';
+import '../settings/settings_screen.dart';
+import '../posts/presentation/posts_screen.dart';
+import '../banners/presentation/banners_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -837,115 +842,523 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Color primaryTextColor,
     required Color secondaryTextColor,
   }) {
-    return Container(
-      color: backgroundColor,
-      padding: const EdgeInsets.all(16),
-      child: ListView(
-        children: [
-          const SizedBox(height: 6),
-          _buildMoreItem(
-            icon: Icons.spa_outlined,
-            title: 'الخدمات والبكجات',
-            cardColor: cardColor,
-            borderColor: borderColor,
-            primaryTextColor: primaryTextColor,
-            secondaryTextColor: secondaryTextColor,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => CatalogScreen(isDarkMode: widget.isDarkMode),
-                ),
-              );
-            },
-          ),
+    final isDarkMode = widget.isDarkMode;
+    final softGoldColor = isDarkMode
+        ? const Color(0xFF2A2419)
+        : const Color(0xFFF7F0E3);
 
-          _buildMoreItem(
-            icon: Icons.badge_outlined,
-            title: 'الموظفات',
-            cardColor: cardColor,
-            borderColor: borderColor,
-            primaryTextColor: primaryTextColor,
-            secondaryTextColor: secondaryTextColor,
+    return ColoredBox(
+      color: backgroundColor,
+      child: ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'المزيد',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: primaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'إدارة كل أقسام كراند ليان من مكان واحد',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: softGoldColor,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.grid_view_rounded,
+                  color: Color(0xFFB89552),
+                  size: 23,
+                ),
+              ),
+            ],
           ),
-          _buildMoreItem(
-            icon: Icons.local_offer_outlined,
-            title: 'العروض والكوبونات',
-            cardColor: cardColor,
-            borderColor: borderColor,
-            primaryTextColor: primaryTextColor,
-            secondaryTextColor: secondaryTextColor,
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: isDarkMode
+                    ? const [Color(0xFF2B2418), Color(0xFF17130E)]
+                    : const [Color(0xFFC7A25E), Color(0xFF9B7738)],
+              ),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF9B7738).withValues(alpha: 0.16),
+                  blurRadius: 22,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'لوحة إدارة متكاملة',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'وصول سريع للخدمات والعروض والتقارير والإعدادات.',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.55,
+                          color: Colors.white.withValues(alpha: 0.82),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(17),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.dashboard_customize_outlined,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                ),
+              ],
+            ),
           ),
-          _buildMoreItem(
-            icon: Icons.bar_chart_outlined,
-            title: 'التقارير والمبيعات',
-            cardColor: cardColor,
-            borderColor: borderColor,
-            primaryTextColor: primaryTextColor,
-            secondaryTextColor: secondaryTextColor,
+          const SizedBox(height: 24),
+          _buildMoreSectionTitle(
+            title: 'الأدوات الأساسية',
+            textColor: primaryTextColor,
           ),
-          _buildMoreItem(
-            icon: Icons.settings_outlined,
-            title: 'الإعدادات',
-            cardColor: cardColor,
-            borderColor: borderColor,
-            primaryTextColor: primaryTextColor,
-            secondaryTextColor: secondaryTextColor,
+          const SizedBox(height: 11),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 11,
+            mainAxisSpacing: 11,
+            childAspectRatio: 1.12,
+            children: [
+              _buildMoreFeatureCard(
+                icon: Icons.spa_outlined,
+                title: 'الخدمات والبكجات',
+                subtitle: 'الأسعار والصور والتفاصيل',
+                cardColor: cardColor,
+                borderColor: borderColor,
+                primaryTextColor: primaryTextColor,
+                secondaryTextColor: secondaryTextColor,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          CatalogScreen(isDarkMode: widget.isDarkMode),
+                    ),
+                  );
+                },
+              ),
+              _buildMoreFeatureCard(
+                icon: Icons.local_offer_outlined,
+                title: 'العروض والكوبونات',
+                subtitle: 'الخصومات والحملات',
+                cardColor: cardColor,
+                borderColor: borderColor,
+                primaryTextColor: primaryTextColor,
+                secondaryTextColor: secondaryTextColor,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => PromotionManagementScreen(
+                        isDarkMode: widget.isDarkMode,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              _buildMoreFeatureCard(
+                icon: Icons.card_giftcard_rounded,
+                title: 'بطاقات الهدايا',
+                subtitle: 'إنشاء وإدارة البطاقات',
+                cardColor: cardColor,
+                borderColor: borderColor,
+                primaryTextColor: primaryTextColor,
+                secondaryTextColor: secondaryTextColor,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          GiftCardsScreen(isDarkMode: widget.isDarkMode),
+                    ),
+                  );
+                },
+              ),
+              _buildMoreFeatureCard(
+                icon: Icons.campaign_outlined,
+                title: 'الإشعارات',
+                subtitle: 'إرسال إشعارات للعميلات',
+                cardColor: cardColor,
+                borderColor: borderColor,
+                primaryTextColor: primaryTextColor,
+                secondaryTextColor: secondaryTextColor,
+                onTap: () => _showComingSoon('الإشعارات'),
+              ),
+            ],
           ),
-          _buildMoreItem(
-            icon: Icons.logout,
-            title: 'تسجيل الخروج',
-            cardColor: cardColor,
-            borderColor: borderColor,
-            primaryTextColor: primaryTextColor,
-            secondaryTextColor: secondaryTextColor,
-            onTap: widget.authSession.logout,
+          const SizedBox(height: 24),
+          _buildMoreSectionTitle(
+            title: 'الإدارة والمتابعة',
+            textColor: primaryTextColor,
+          ),
+          const SizedBox(height: 11),
+          Container(
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor, width: 0.8),
+            ),
+            child: Column(
+              children: [
+
+                _buildMoreListItem(
+                  icon: Icons.view_carousel_outlined,
+                  title: 'البانرات',
+                  subtitle: 'إدارة بانرات الرئيسية والصالون والعيادة',
+                  primaryTextColor: primaryTextColor,
+                  secondaryTextColor: secondaryTextColor,
+                  borderColor: borderColor,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => BannersScreen(isDarkMode: widget.isDarkMode),
+                      ),
+                    );
+                  },
+                ),
+
+                              _buildMoreListItem(
+                  icon: Icons.photo_library_outlined,
+                  title: 'آخر المنشورات',
+                  subtitle: 'إضافة وإدارة منشورات الصالون والعيادة',
+                  primaryTextColor: primaryTextColor,
+                  secondaryTextColor: secondaryTextColor,
+                  borderColor: borderColor,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PostsScreen(
+                          isDarkMode: widget.isDarkMode,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                _buildMoreListItem(
+                  icon: Icons.insert_chart_outlined_rounded,
+                  title: 'التقارير',
+                  subtitle: 'التقارير اليومية والشهرية',
+                  primaryTextColor: primaryTextColor,
+                  secondaryTextColor: secondaryTextColor,
+                  borderColor: borderColor,
+                  onTap: () => _showComingSoon('التقارير'),
+                ),
+                _buildMoreListItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'المالية',
+                  subtitle: 'المبيعات والأرباح والمدفوعات',
+                  primaryTextColor: primaryTextColor,
+                  secondaryTextColor: secondaryTextColor,
+                  borderColor: borderColor,
+                  onTap: () => _showComingSoon('المالية'),
+                ),
+                _buildMoreListItem(
+                  icon: Icons.star_outline_rounded,
+                  title: 'تقييمات العميلات',
+                  subtitle: 'متابعة التقييمات بعد الخدمات',
+                  primaryTextColor: primaryTextColor,
+                  secondaryTextColor: secondaryTextColor,
+                  borderColor: borderColor,
+                  onTap: () => _showComingSoon('تقييمات العميلات'),
+                ),
+                _buildMoreListItem(
+                  icon: Icons.settings_outlined,
+                  title: 'الإعدادات',
+                  subtitle: 'إعدادات التطبيق والحساب',
+                  primaryTextColor: primaryTextColor,
+                  secondaryTextColor: secondaryTextColor,
+                  borderColor: borderColor,
+                  isLast: true,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SettingsScreen(
+                          isDarkMode: widget.isDarkMode,
+                          onToggleTheme: widget.onToggleTheme,
+                          onLogout: widget.authSession.logout,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.authSession.logout,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: isDarkMode
+                      ? const Color(0xFF2B1717)
+                      : const Color(0xFFFFF2F2),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDarkMode
+                        ? const Color(0xFF4A2525)
+                        : const Color(0xFFFFD8D8),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.logout_rounded,
+                      color: Color(0xFFD84A4A),
+                      size: 21,
+                    ),
+                    SizedBox(width: 11),
+                    Expanded(
+                      child: Text(
+                        'تسجيل الخروج',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFD84A4A),
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_left_rounded,
+                      color: Color(0xFFD84A4A),
+                      size: 21,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMoreItem({
+  Widget _buildMoreSectionTitle({
+    required String title,
+    required Color textColor,
+  }) {
+    return Text(
+      title,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
+        color: textColor,
+      ),
+    );
+  }
+
+  Widget _buildMoreFeatureCard({
     required IconData icon,
     required String title,
+    required String subtitle,
     required Color cardColor,
     required Color borderColor,
     required Color primaryTextColor,
     required Color secondaryTextColor,
-    VoidCallback? onTap,
+    required VoidCallback onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        dense: true,
-        minTileHeight: 52,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        onTap:
-            onTap ??
-            () {
-              _showComingSoon(title);
-            },
-        tileColor: cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: borderColor, width: 0.8),
-        ),
-        leading: Icon(icon, color: const Color(0xFFB89552), size: 21),
-        title: Text(
-          title,
-          textAlign: TextAlign.right,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: primaryTextColor,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor, width: 0.8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB89552).withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(icon, color: const Color(0xFFB89552), size: 21),
+                  ),
+                  Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: secondaryTextColor.withValues(alpha: 0.72),
+                    size: 15,
+                  ),
+                ],
+              ),
+           const SizedBox(height: 18),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: primaryTextColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  height: 1.35,
+                  color: secondaryTextColor,
+                ),
+              ),
+            ],
           ),
         ),
-        trailing: Icon(
-          Icons.chevron_left_rounded,
-          color: secondaryTextColor,
-          size: 21,
-        ),
       ),
+    );
+  }
+
+  Widget _buildMoreListItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color primaryTextColor,
+    required Color secondaryTextColor,
+    required Color borderColor,
+    required VoidCallback onTap,
+    bool isLast = false,
+  }) {
+    return Column(
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB89552).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: const Color(0xFFB89552), size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: secondaryTextColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_left_rounded,
+                    color: secondaryTextColor,
+                    size: 21,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (!isLast)
+          Padding(
+            padding: const EdgeInsets.only(right: 66, left: 14),
+            child: Divider(height: 1, thickness: 0.7, color: borderColor),
+          ),
+      ],
     );
   }
 

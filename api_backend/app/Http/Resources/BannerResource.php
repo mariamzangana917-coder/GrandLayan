@@ -18,6 +18,7 @@ class BannerResource extends JsonResource
             'title' => $this->title,
             'subtitle' => $this->subtitle,
             'image_url' => Storage::disk('public')->url($this->image_path),
+            'placement' => $this->placement,
             'action_type' => $this->action_type->value,
             'action_target_id' => $this->action_target_id,
             'external_url' => $this->external_url,

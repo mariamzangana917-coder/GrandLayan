@@ -1,4 +1,4 @@
-<?php
+php artisan tinker --execute="dump(\Illuminate\Support\Facades\Schema::getColumnListing('catalog_item_images'));"<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;

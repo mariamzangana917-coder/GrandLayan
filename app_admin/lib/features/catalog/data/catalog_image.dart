@@ -35,8 +35,7 @@ class CatalogImage {
       return '';
     }
 
-    if (trimmed.startsWith('http://') ||
-        trimmed.startsWith('https://')) {
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
       return trimmed;
     }
 

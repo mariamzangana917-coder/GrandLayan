@@ -1,2 +1,161 @@
+# =========================
+# Secrets / Environment
+# =========================
+.env
+.env.*
+!.env.example
 
+# =========================
+# Laravel
+# =========================
+/api_backend/vendor/
+/api_backend/node_modules/
+/api_backend/storage/logs/*
+/api_backend/storage/framework/cache/*
+/api_backend/storage/framework/sessions/*
+/api_backend/storage/framework/views/*
+/api_backend/bootstrap/cache/*.php
+
+# =========================
+# Flutter / Dart
+# =========================
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/coverage/
+
+# =========================
+# Android
+# =========================
+**/.gradle/
+**/local.properties
+**/captures/
+**/*.keystore
+**/*.jks
+
+# =========================
+# iOS
+# =========================
+**/Pods/
+**/.symlinks/
+**/Flutter/ephemeral/
+**/DerivedData/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+*.iml
+
+# =========================
+# Node
+# =========================
+**/node_modules/
+
+# =========================
+# Temporary / Backup files
+# =========================
+*.bak
+*.backup
+*.tmp
+*.temp
+*.patch
+
+# Backup directories
+**/backups/
+**/_backups/
+**/*backup*/
+**/*Backup*/
+
+# =========================
+# Logs / Audit files
+# =========================
+*.log
+*_audit.txt
+*audit*.txt
+*error*.txt
+*diff*.txt
+*failure*.txt
+*notification*.txt
+
+# =========================
+# Existing rule
+# =========================
 *.backup.dart
+
+# =========================
+# Project backup folders/files
+# =========================
+/appointment_notifications_backup_20260801_162527/
+/appointment_notifications_utf8_backup_20260801_212300/
+/notification_api_response_backup_20260801_215335/
+/notification_link_backup_20260801_111653/
+/_backups/
+
+# =========================
+# Audit / temporary project files
+# =========================
+/appointment_notification_audit.txt
+/appointment_notification_diff_audit.txt
+/notifications_audit.txt
+/notification_api_failure_audit.txt
+/offers_full_audit.txt
+/server_sync_latest.patch
+
+# Accidental command/text files
+/h origin main
+/with appointments?git add --
+
+# Project backup folders/files
+/appointment_notifications_backup_20260801_162527/
+/appointment_notifications_utf8_backup_20260801_212300/
+/notification_api_response_backup_20260801_215335/
+/notification_link_backup_20260801_111653/
+/_backups/
+
+# Audit / temporary project files
+/appointment_notification_audit.txt
+/appointment_notification_diff_audit.txt
+/notifications_audit.txt
+/notification_api_failure_audit.txt
+/offers_full_audit.txt
+/server_sync_latest.patch
+
+# Accidental command/text files
+/h origin main
+/with appointments?git add --
+
+# Project backup folders/files
+/appointment_notifications_backup_20260801_162527/
+/appointment_notifications_utf8_backup_20260801_212300/
+/notification_api_response_backup_20260801_215335/
+/notification_link_backup_20260801_111653/
+/_backups/
+
+# Audit / temporary project files
+/appointment_notification_audit.txt
+/appointment_notification_diff_audit.txt
+/notifications_audit.txt
+/notification_api_failure_audit.txt
+/offers_full_audit.txt
+/server_sync_latest.patch
+
+# Accidental command/text files
+/h origin main
+/with appointments?git add --
+
+# Backup files with timestamp suffix
+*.backup_*
+*.bak_*
+*.before_*
+
+# Accidental downloaded web page/assets
+/app_customer/assets/images/Pin on Wallpapers */ 
+
+# Accidental downloaded/generated files
+with appointments*
+app_customer/assets/images/Pin on Wallpapers*.html

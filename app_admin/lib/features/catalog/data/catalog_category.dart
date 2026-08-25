@@ -23,17 +23,15 @@ class CatalogCategory {
       name: json['name']?.toString() ?? '',
       departmentId: _toNullableInt(json['department_id']),
       isActive: _toBool(json['is_active'], fallback: true),
-      department:
-          departmentJson is Map<String, dynamic>
-              ? Department.fromJson(departmentJson)
-              : departmentJson is Map
-              ? Department.fromJson(
-                departmentJson.map(
-                  (dynamic key, dynamic value) =>
-                      MapEntry(key.toString(), value),
-                ),
-              )
-              : null,
+      department: departmentJson is Map<String, dynamic>
+          ? Department.fromJson(departmentJson)
+          : departmentJson is Map
+          ? Department.fromJson(
+              departmentJson.map(
+                (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+              ),
+            )
+          : null,
     );
   }
 

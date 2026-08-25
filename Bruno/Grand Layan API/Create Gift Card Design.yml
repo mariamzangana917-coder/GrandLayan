@@ -1,0 +1,15 @@
+info:
+  name: Create Gift Card Design
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: http://64.227.16.105/api/admin/gift-card-designs
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
